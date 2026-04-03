@@ -155,12 +155,6 @@ export async function POST(request: NextRequest) {
     const hasSavedProductNames = savedProductNames && savedProductNames.length > 0
     const hasBudget = budget && (budget.monthlyBudget > 0 || budget.spentAmount > 0 || budget.shoppingTurn)
 
-    // 📌 التحقق مما إذا كانت البيانات المرسلة "شرعية" (حتى لو كانت فارغة)
-    // البيانات شرعية إذا كانت تحتوي على أي بيانات أو إذا كان هناك budget أو إذا كانت مصفوفة items موجودة (حتى لو فارغة)
-    const isLegitimateSave = hasItems || hasFamilyMembers || hasCustomStores || hasPriceHistory || 
-                             hasCustomCategories || hasSavedProductNames || hasBudget ||
-                             Array.isArray(items) // 📌 السماح بحذف جميع المنتجات
-
     // جلب البيانات الحالية للمستخدم
     const currentData = await Promise.all([
       prisma.item.count({ where: { userId: user.id } }),
@@ -170,13 +164,16 @@ export async function POST(request: NextRequest) {
     const [currentItems, currentFamily, currentPriceHistory] = currentData
     const hasCurrentData = currentItems > 0 || currentFamily > 0 || currentPriceHistory > 0
 
-    // ⚠️ إذا كانت البيانات المرسلة غير شرعية والسيرفر يحتوي على بيانات، لا تحذف!
-    // 📌 تم تعديل الشرط للسماح بالحذف الكامل للمنتجات
-    if (!isLegitimateSave && hasCurrentData) {
-      console.log(`⚠️ محاولة حفظ بيانات غير شرعية للمستخدم ${user.email} - تم الرفض`)
+    // 📌 البيانات شرعية فقط إذا كانت تحتوي على محتوى فعلي
+    const hasAnyNewData = hasItems || hasFamilyMembers || hasCustomStores || hasPriceHistory || 
+                          hasCustomCategories || hasSavedProductNames || hasBudget
+
+    // ⚠️ حماية قوية: إذا كانت البيانات المرسلة فارغة والسيرفر يحتوي على بيانات، لا تحذف!
+    if (!hasAnyNewData && hasCurrentData) {
+      console.log(`⚠️ محاولة حفظ بيانات فارغة للمستخدم ${user.email} - تم الرفض (السيرفر يحتوي على ${currentItems} منتج، ${currentFamily} فرد، ${currentPriceHistory} سجل سعر)`)
       return NextResponse.json({
         success: false,
-        warning: 'تم رفض الحفظ - البيانات المرسلة غير صالحة'
+        warning: 'تم رفض الحفظ - لا يمكن حذف البيانات الموجودة ببيانات فارغة'
       })
     }
 
@@ -208,16 +205,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // حذف البيانات القديمة
-    // 📌 نحذف دائماً إذا كانت البيانات المرسلة شرعية (حتى لو كانت فارغة)
-    // هذا يسمح بحذف جميع المنتجات أو جميع أفراد العائلة إلخ.
-    if (isLegitimateSave) {
+    // حذف البيانات القديمة (فقط إذا كانت هناك بيانات جديدة لحفظها)
+    if (hasAnyNewData) {
       await Promise.all([
-        Array.isArray(items) ? prisma.item.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
-        Array.isArray(familyMembers) ? prisma.familyMember.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
-        Array.isArray(customStores) ? prisma.customStore.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
-        priceHistory !== undefined ? prisma.priceHistoryRecord.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
-        Array.isArray(customCategories) ? prisma.customCategory.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
+        hasItems ? prisma.item.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
+        hasFamilyMembers ? prisma.familyMember.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
+        hasCustomStores ? prisma.customStore.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
+        hasPriceHistory ? prisma.priceHistoryRecord.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
+        hasCustomCategories ? prisma.customCategory.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
       ])
     }
 
