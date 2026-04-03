@@ -2057,28 +2057,56 @@ export default function Home() {
     
     if (!selectedItemForPrice || !storeName || !newPriceAmount) return
     
+    const priceValue = parseFloat(newPriceAmount)
+    const productKey = selectedItemForPrice.name.toLowerCase().trim()
+    
+    // التحقق من وجود السعر مسبقاً في priceHistory
+    const existingInHistory = priceHistory[productKey] || []
+    const duplicateInHistory = existingInHistory.some(p => 
+      p.store === storeName && p.price === priceValue
+    )
+    
+    // التحقق من وجود السعر مسبقاً في المنتج الحالي
+    const existingInItem = selectedItemForPrice.prices || []
+    const duplicateInItem = existingInItem.some(p => 
+      p.store === storeName && p.price === priceValue
+    )
+    
+    // إذا كان السعر موجوداً مسبقاً، لا تضفه
+    if (duplicateInHistory && duplicateInItem) {
+      showAlertMessage('⚠️ هذا السعر مسجل مسبقاً لنفس المتجر')
+      return
+    }
+    
     const newPrice: PriceEntry = {
       store: storeName,
-      price: parseFloat(newPriceAmount),
+      price: priceValue,
       date: new Date().toISOString()
     }
     
     const updatedItems = items.map(item => {
       if (item.id === selectedItemForPrice.id) {
         const currentPrices = item.prices || []
-        return { ...item, prices: [...currentPrices, newPrice] }
+        // إضافة فقط إذا لم يكن مكرراً
+        if (!currentPrices.some(p => p.store === storeName && p.price === priceValue)) {
+          return { ...item, prices: [...currentPrices, newPrice] }
+        }
+        return item
       }
       return item
     })
     setItems(updatedItems)
     
-    const productKey = selectedItemForPrice.name.toLowerCase().trim()
     setPriceHistory(prev => {
       const existingPrices = prev[productKey] || []
-      return {
-        ...prev,
-        [productKey]: [...existingPrices, newPrice]
+      // إضافة فقط إذا لم يكن مكرراً
+      if (!existingPrices.some(p => p.store === storeName && p.price === priceValue)) {
+        return {
+          ...prev,
+          [productKey]: [...existingPrices, newPrice]
+        }
       }
+      return prev
     })
     
     setNewPriceStore('')
