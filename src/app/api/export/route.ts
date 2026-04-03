@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     // تنسيق البيانات للتصدير
     const exportData = {
       // معلومات التطبيق
-      appVersion: '1.2.2',
+      appVersion: '1.3.0',
       exportDate: new Date().toISOString(),
       exportType: 'mqadhi-backup',
       

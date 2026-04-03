@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser, findUserByEmail, verifyPassword, hashPassword, findUserById } from '@/lib/auth'
-import db from '@/lib/db'
+import { prisma } from '@/lib/prisma'
+import { verifyPassword, hashPassword, validatePasswordStrength, sanitizeInput, validateEmail } from '@/lib/auth-utils'
+
+// الحصول على المستخدم الحالي
+async function getCurrentUser(request: NextRequest) {
+  const sessionToken = request.cookies.get('session-token')?.value
+  if (!sessionToken) return null
+
+  const session = await prisma.session.findFirst({
+    where: {
+      id: sessionToken,
+      expiresAt: { gt: new Date() }
+    },
+    include: { user: true }
+  })
+
+  return session?.user || null
+}
 
 export async function PUT(request: NextRequest) {
   try {
@@ -9,59 +25,86 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
     }
 
-    const { name, email, currentPassword, newPassword } = await request.json()
+    const body = await request.json()
+    const { name, email, currentPassword, newPassword } = body
 
     // التحقق من كلمة المرور الحالية إذا كان هناك تغيير في البيانات الحساسة
     if (email || newPassword) {
-      const fullUser = findUserById(user.id)
+      if (!currentPassword) {
+        return NextResponse.json({ error: 'يجب إدخال كلمة المرور الحالية للتغييرات الحساسة' }, { status: 400 })
+      }
+
+      // التحقق من كلمة المرور
+      const fullUser = await prisma.user.findUnique({
+        where: { id: user.id }
+      })
+
       if (!fullUser) {
         return NextResponse.json({ error: 'المستخدم غير موجود' }, { status: 404 })
+      }
+
+      const passwordResult = await verifyPassword(currentPassword, fullUser.password)
+      if (!passwordResult.isValid) {
+        return NextResponse.json({ error: 'كلمة المرور الحالية غير صحيحة' }, { status: 400 })
       }
     }
 
     // تحديث الاسم
     if (name && name !== user.name) {
-      db.prepare('UPDATE users SET name = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?').run(name, user.id)
+      const sanitizedName = sanitizeInput(name, 100)
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { name: sanitizedName }
+      })
     }
 
     // تحديث البريد الإلكتروني
     if (email && email !== user.email) {
+      const sanitizedEmail = email.toLowerCase().trim()
+      
+      if (!validateEmail(sanitizedEmail)) {
+        return NextResponse.json({ error: 'البريد الإلكتروني غير صالح' }, { status: 400 })
+      }
+
       // التحقق من عدم وجود البريد مسبقاً
-      const existingUser = findUserByEmail(email)
+      const existingUser = await prisma.user.findUnique({
+        where: { email: sanitizedEmail }
+      })
+
       if (existingUser && existingUser.id !== user.id) {
         return NextResponse.json({ error: 'البريد الإلكتروني مستخدم بالفعل' }, { status: 400 })
       }
-      db.prepare('UPDATE users SET email = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?').run(email, user.id)
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { email: sanitizedEmail }
+      })
     }
 
     // تحديث كلمة المرور
     if (newPassword) {
-      if (!currentPassword) {
-        return NextResponse.json({ error: 'يجب إدخال كلمة المرور الحالية' }, { status: 400 })
-      }
-
-      const fullUser = findUserById(user.id)
-      if (!fullUser) {
-        return NextResponse.json({ error: 'المستخدم غير موجود' }, { status: 404 })
-      }
-
-      // التحقق من كلمة المرور الحالية
-      const fullUserWithPassword = db.prepare('SELECT password FROM users WHERE id = ?').get(user.id) as { password: string }
-      const isValid = await verifyPassword(currentPassword, fullUserWithPassword.password)
-      if (!isValid) {
-        return NextResponse.json({ error: 'كلمة المرور الحالية غير صحيحة' }, { status: 400 })
-      }
-
-      if (newPassword.length < 6) {
-        return NextResponse.json({ error: 'كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل' }, { status: 400 })
+      const passwordValidation = validatePasswordStrength(newPassword)
+      if (!passwordValidation.valid) {
+        return NextResponse.json({ error: passwordValidation.errors[0] }, { status: 400 })
       }
 
       const hashedPassword = await hashPassword(newPassword)
-      db.prepare('UPDATE users SET password = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?').run(hashedPassword, user.id)
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword }
+      })
     }
 
     // جلب البيانات المحدثة
-    const updatedUser = findUserById(user.id)
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatar: true
+      }
+    })
 
     return NextResponse.json({ 
       success: true,
@@ -88,20 +131,32 @@ export async function DELETE(request: NextRequest) {
     }
 
     // التحقق من كلمة المرور
-    const fullUser = db.prepare('SELECT password FROM users WHERE id = ?').get(user.id) as { password: string }
-    const isValid = await verifyPassword(password, fullUser.password)
-    if (!isValid) {
+    const fullUser = await prisma.user.findUnique({
+      where: { id: user.id }
+    })
+
+    if (!fullUser) {
+      return NextResponse.json({ error: 'المستخدم غير موجود' }, { status: 404 })
+    }
+
+    const passwordResult = await verifyPassword(password, fullUser.password)
+    if (!passwordResult.isValid) {
       return NextResponse.json({ error: 'كلمة المرور غير صحيحة' }, { status: 400 })
     }
 
-    // حذف جميع بيانات المستخدم
-    db.prepare('DELETE FROM items WHERE userId = ?').run(user.id)
-    db.prepare('DELETE FROM custom_stores WHERE userId = ?').run(user.id)
-    db.prepare('DELETE FROM budgets WHERE userId = ?').run(user.id)
-    db.prepare('DELETE FROM price_history WHERE userId = ?').run(user.id)
-    db.prepare('DELETE FROM users WHERE id = ?').run(user.id)
+    // حذف جميع بيانات المستخدم (cascade سيحذف الباقي تلقائياً)
+    await prisma.session.deleteMany({
+      where: { userId: user.id }
+    })
 
-    return NextResponse.json({ success: true })
+    await prisma.user.delete({
+      where: { id: user.id }
+    })
+
+    const response = NextResponse.json({ success: true })
+    response.cookies.delete('session-token')
+
+    return response
   } catch (error) {
     console.error('Delete account error:', error)
     return NextResponse.json({ error: 'حدث خطأ أثناء حذف الحساب' }, { status: 500 })
