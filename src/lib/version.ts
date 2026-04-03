@@ -4,13 +4,23 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.3.0'
+export const APP_VERSION = '1.4.0'
 
 // تاريخ الإصدار
 export const RELEASE_DATE = '2024-03-31'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.4.0',
+    date: '2024-04-04',
+    changes: [
+      '🚀 الانتقال إلى Supabase PostgreSQL',
+      '☁️ جاهز للنشر على Vercel',
+      '⚡ أداء أفضل مع قاعدة بيانات سحابية',
+      '🔒 بيانات أكثر أماناً على السحابة',
+    ]
+  },
   {
     version: '1.3.0',
     date: '2024-03-31',
