@@ -7,12 +7,18 @@ const globalForPrisma = globalThis as unknown as {
 // تعطيل prepared statements للعمل مع Supabase Pooler (PgBouncer)
 const prismaClientSingleton = () => {
   return new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
-  })
+    log: ['error'],
+    // تعطيل prepared statements مهم للعمل مع PgBouncer
+    __internal: {
+      engine: {
+        connection: {
+          pool: {
+            enabled: false
+          }
+        }
+      }
+    }
+  } as any)
 }
 
 export const prisma = globalForPrisma.prisma ?? prismaClientSingleton()
