@@ -17,6 +17,11 @@ model User {
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   
+  // توثيق الحساب واستعادة كلمة المرور
+  isVerified       Boolean              @default(false)
+  verificationCode String?
+  verificationExpires DateTime?
+  
   // العائلة - المستخدم يمكن أن يكون منشئ عائلة أو عضو
   familyId         String?
   family           Family?              @relation(fields: [familyId], references: [id], onDelete: SetNull)
