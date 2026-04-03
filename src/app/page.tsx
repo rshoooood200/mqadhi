@@ -2222,6 +2222,47 @@ export default function Home() {
     })
   }
 
+  // 🧹 تنظيف الأسعار المكررة من ذاكرة الأسعار
+  const cleanupDuplicatePrices = () => {
+    let totalRemoved = 0
+    let productsCleaned = 0
+
+    setPriceHistory(prev => {
+      const newState: Record<string, PriceEntry[]> = {}
+      
+      for (const [productName, prices] of Object.entries(prev)) {
+        const uniquePrices: PriceEntry[] = []
+        const seen = new Set<string>()
+        
+        for (const price of prices) {
+          // إنشاء مفتاح فريد من المتجر والسعر
+          const key = `${price.store}|${price.price}`
+          
+          if (!seen.has(key)) {
+            seen.add(key)
+            uniquePrices.push(price)
+          } else {
+            totalRemoved++
+          }
+        }
+        
+        if (uniquePrices.length !== prices.length) {
+          productsCleaned++
+        }
+        
+        newState[productName] = uniquePrices
+      }
+      
+      return newState
+    })
+
+    if (totalRemoved > 0) {
+      showAlertMessage(`✅ تم حذف ${totalRemoved} سعر مكرر من ${productsCleaned} منتج`)
+    } else {
+      showAlertMessage('✅ لا توجد أسعار مكررة')
+    }
+  }
+
   // إنشاء فرد عائلة جديد
   const createNewFamilyMember = (name: string) => {
     const newMember: UserProfile = {
@@ -3476,14 +3517,27 @@ export default function Home() {
                   <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
                     <span>💰</span> ذاكرة الأسعار
                   </h3>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 ${
-                    Object.keys(priceHistory).length > 0
-                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                      : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-                  }`}>
-                    <span>📦</span>
-                    <span>{Object.keys(priceHistory).length} منتج</span>
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {Object.keys(priceHistory).length > 0 && (
+                      <button
+                        onClick={cleanupDuplicatePrices}
+                        className="px-3 py-1.5 text-sm bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
+                        title="إزالة الأسعار المكررة"
+                        suppressHydrationWarning
+                      >
+                        <span>🧹</span>
+                        <span>تنظيف المكرر</span>
+                      </button>
+                    )}
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 ${
+                      Object.keys(priceHistory).length > 0
+                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                    }`}>
+                      <span>📦</span>
+                      <span>{Object.keys(priceHistory).length} منتج</span>
+                    </span>
+                  </div>
                 </div>
 
                 {Object.keys(priceHistory).length === 0 ? (

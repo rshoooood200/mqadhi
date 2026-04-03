@@ -4,13 +4,21 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.5.2'
+export const APP_VERSION = '1.5.3'
 
 // تاريخ الإصدار
 export const RELEASE_DATE = '2026-04-04'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.5.3',
+    date: '2026-04-04',
+    changes: [
+      '🧹 إضافة زر تنظيف الأسعار المكررة',
+      '✅ إصلاح تكرار الأسعار الموجودة مسبقاً',
+    ]
+  },
   {
     version: '1.5.2',
     date: '2026-04-04',
