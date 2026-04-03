@@ -146,7 +146,8 @@ export async function POST(request: NextRequest) {
 
     const { items, familyMembers, customStores, priceHistory, budget, customCategories, savedProductNames } = data
 
-    // 🛡️ حماية ضد فقدان البيانات: التحقق من وجود بيانات قبل الحذف
+    // التحقق مما إذا كانت items محددة (حتى لو فارغة)
+    const itemsSpecified = items !== undefined
     const hasItems = items && items.length > 0
     const hasFamilyMembers = familyMembers && familyMembers.length > 0
     const hasCustomStores = customStores && customStores.length > 0
@@ -155,30 +156,11 @@ export async function POST(request: NextRequest) {
     const hasSavedProductNames = savedProductNames && savedProductNames.length > 0
     const hasBudget = budget && (budget.monthlyBudget > 0 || budget.spentAmount > 0 || budget.shoppingTurn)
 
-    // جلب البيانات الحالية للمستخدم
-    const currentData = await Promise.all([
-      prisma.item.count({ where: { userId: user.id } }),
-      prisma.familyMember.count({ where: { userId: user.id } }),
-      prisma.priceHistoryRecord.count({ where: { userId: user.id } })
-    ])
-    const [currentItems, currentFamily, currentPriceHistory] = currentData
-    const hasCurrentData = currentItems > 0 || currentFamily > 0 || currentPriceHistory > 0
-
-    // 📌 البيانات شرعية فقط إذا كانت تحتوي على محتوى فعلي
-    const hasAnyNewData = hasItems || hasFamilyMembers || hasCustomStores || hasPriceHistory || 
-                          hasCustomCategories || hasSavedProductNames || hasBudget
-
-    // ⚠️ حماية قوية: إذا كانت البيانات المرسلة فارغة والسيرفر يحتوي على بيانات، لا تحذف!
-    if (!hasAnyNewData && hasCurrentData) {
-      console.log(`⚠️ محاولة حفظ بيانات فارغة للمستخدم ${user.email} - تم الرفض (السيرفر يحتوي على ${currentItems} منتج، ${currentFamily} فرد، ${currentPriceHistory} سجل سعر)`)
-      return NextResponse.json({
-        success: false,
-        warning: 'تم رفض الحفظ - لا يمكن حذف البيانات الموجودة ببيانات فارغة'
-      })
-    }
-
-    // 🔄 إنشاء نسخة احتياطية تلقائية قبل أي تعديل (كل ساعة على الأكثر)
-    if (hasCurrentData && (hasItems || hasPriceHistory)) {
+    // جلب عدد البيانات الحالية
+    const currentItemsCount = await prisma.item.count({ where: { userId: user.id } })
+    
+    // 🔄 إنشاء نسخة احتياطية تلقائية قبل أي تعديل (إذا كان هناك بيانات حالية)
+    if (currentItemsCount > 0 && itemsSpecified) {
       const needsBackup = !(await hasRecentBackup(user.id))
       if (needsBackup) {
         // جلب البيانات الحالية للنسخة الاحتياطية
@@ -205,85 +187,89 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // حذف البيانات القديمة (فقط إذا كانت هناك بيانات جديدة لحفظها)
-    if (hasAnyNewData) {
-      await Promise.all([
-        hasItems ? prisma.item.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
-        hasFamilyMembers ? prisma.familyMember.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
-        hasCustomStores ? prisma.customStore.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
-        hasPriceHistory ? prisma.priceHistoryRecord.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
-        hasCustomCategories ? prisma.customCategory.deleteMany({ where: { userId: user.id } }) : Promise.resolve(),
-      ])
+    // 📌 إذا تم تحديد items (حتى لو فارغة)، نحذف القديمة ونحفظ الجديدة
+    if (itemsSpecified) {
+      // حذف العناصر القديمة
+      await prisma.item.deleteMany({ where: { userId: user.id } })
+      
+      // حفظ العناصر الجديدة (إذا وجدت)
+      if (hasItems) {
+        for (const item of items) {
+          await prisma.item.create({
+            data: {
+              id: item.id,
+              name: item.name,
+              category: item.category,
+              quantity: item.quantity || 1,
+              notes: item.notes || '',
+              isPurchased: item.isPurchased || false,
+              image: item.image || null,
+              userId: user.id,
+              prices: {
+                create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
+                  store: p.store,
+                  price: p.price,
+                  date: new Date(p.date)
+                }))
+              }
+            }
+          })
+        }
+      }
     }
 
-    // حفظ الأغراض
-    if (items && items.length > 0) {
-      for (const item of items) {
-        await prisma.item.create({
-          data: {
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            quantity: item.quantity || 1,
-            notes: item.notes || '',
-            isPurchased: item.isPurchased || false,
-            image: item.image || null,
-            userId: user.id,
-            prices: {
-              create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
-                store: p.store,
-                price: p.price,
-                date: new Date(p.date)
-              }))
-            }
-          }
+    // حفظ/تحديث أفراد العائلة
+    if (familyMembers !== undefined) {
+      await prisma.familyMember.deleteMany({ where: { userId: user.id } })
+      if (hasFamilyMembers) {
+        await prisma.familyMember.createMany({
+          data: familyMembers.map((m: { id: string; name: string; avatar: string }) => ({
+            id: m.id,
+            name: m.name,
+            avatar: m.avatar || '👤',
+            userId: user.id
+          }))
         })
       }
     }
 
-    // حفظ أفراد العائلة
-    if (familyMembers && familyMembers.length > 0) {
-      await prisma.familyMember.createMany({
-        data: familyMembers.map((m: { id: string; name: string; avatar: string }) => ({
-          id: m.id,
-          name: m.name,
-          avatar: m.avatar || '👤',
-          userId: user.id
-        }))
-      })
-    }
-
-    // حفظ المتاجر المخصصة
-    if (customStores && customStores.length > 0) {
-      await prisma.customStore.createMany({
-        data: customStores.map((name: string) => ({
-          name,
-          userId: user.id
-        }))
-      })
-    }
-
-    // حفظ سجل الأسعار
-    if (priceHistory && Object.keys(priceHistory).length > 0) {
-      const records: { productName: string; store: string; price: number; date: Date; userId: string }[] = []
-      for (const [productName, prices] of Object.entries(priceHistory)) {
-        for (const p of (prices as { store: string; price: number; date: string }[])) {
-          records.push({
-            productName,
-            store: p.store,
-            price: p.price,
-            date: new Date(p.date),
+    // حفظ/تحديث المتاجر المخصصة
+    if (customStores !== undefined) {
+      await prisma.customStore.deleteMany({ where: { userId: user.id } })
+      if (hasCustomStores) {
+        await prisma.customStore.createMany({
+          data: customStores.map((name: string) => ({
+            name,
             userId: user.id
-          })
-        }
+          }))
+        })
       }
-      if (records.length > 0) {
-        await prisma.priceHistoryRecord.createMany({ data: records })
+    }
+
+    // حفظ/تحديث سجل الأسعار
+    if (priceHistory !== undefined) {
+      await prisma.priceHistoryRecord.deleteMany({ where: { userId: user.id } })
+      if (hasPriceHistory) {
+        const records: { productName: string; store: string; price: number; date: Date; userId: string }[] = []
+        for (const [productName, prices] of Object.entries(priceHistory)) {
+          for (const p of (prices as { store: string; price: number; date: string }[])) {
+            records.push({
+              productName,
+              store: p.store,
+              price: p.price,
+              date: new Date(p.date),
+              userId: user.id
+            })
+          }
+        }
+        if (records.length > 0) {
+          await prisma.priceHistoryRecord.createMany({ data: records })
+        }
       }
     }
 
     // حفظ الميزانية
-    if (budget) {
+    if (budget !== undefined) {
       await prisma.budget.upsert({
         where: { userId: user.id },
         update: {
@@ -302,36 +288,39 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // حفظ التصنيفات المخصصة
-    if (customCategories && customCategories.length > 0) {
-      await prisma.customCategory.createMany({
-        data: customCategories.map((cat: { id: string; name: string; icon: string; color: string; keywords: string[] }) => ({
-          id: cat.id,
-          name: cat.name,
-          icon: cat.icon || '📦',
-          color: cat.color || 'gray',
-          keywords: Array.isArray(cat.keywords) ? cat.keywords.join(',') : '',
-          userId: user.id
-        }))
-      })
+    // حفظ/تحديث التصنيفات المخصصة
+    if (customCategories !== undefined) {
+      await prisma.customCategory.deleteMany({ where: { userId: user.id } })
+      if (hasCustomCategories) {
+        await prisma.customCategory.createMany({
+          data: customCategories.map((cat: { id: string; name: string; icon: string; color: string; keywords: string[] }) => ({
+            id: cat.id,
+            name: cat.name,
+            icon: cat.icon || '📦',
+            color: cat.color || 'gray',
+            keywords: Array.isArray(cat.keywords) ? cat.keywords.join(',') : '',
+            userId: user.id
+          }))
+        })
+      }
     }
 
     // حفظ أسماء المنتجات المحفوظة
-    if (savedProductNames && Array.isArray(savedProductNames) && savedProductNames.length > 0) {
-      // حذف القديمة أولاً
+    if (savedProductNames !== undefined) {
       await prisma.savedProductName.deleteMany({ where: { userId: user.id } })
-      // إضافة الجديدة
-      for (const name of savedProductNames) {
-        if (name && typeof name === 'string' && name.trim()) {
-          try {
-            await prisma.savedProductName.create({
-              data: {
-                name: name.trim(),
-                userId: user.id
-              }
-            })
-          } catch {
-            // تجاهل التكرار (unique constraint)
+      if (hasSavedProductNames) {
+        for (const name of savedProductNames) {
+          if (name && typeof name === 'string' && name.trim()) {
+            try {
+              await prisma.savedProductName.create({
+                data: {
+                  name: name.trim(),
+                  userId: user.id
+                }
+              })
+            } catch {
+              // تجاهل التكرار (unique constraint)
+            }
           }
         }
       }
