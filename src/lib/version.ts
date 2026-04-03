@@ -1,0 +1,147 @@
+// 📌 إصدار التطبيق - قم بتحديث هذا الرقم عند نشر نسخة جديدة
+// الصيغة: MAJOR.MINOR.PATCH (مثال: 1.2.3)
+// - MAJOR: تغييرات جذرية أو ميزات كبيرة
+// - MINOR: ميزات جديدة متوافقة
+// - PATCH: إصلاح أخطاء
+
+export const APP_VERSION = '1.3.0'
+
+// تاريخ الإصدار
+export const RELEASE_DATE = '2024-03-31'
+
+// سجل التغييرات (يظهر للمستخدمين)
+export const CHANGELOG = [
+  {
+    version: '1.3.0',
+    date: '2024-03-31',
+    changes: [
+      '🔧 إصلاح جذري: منع race condition في الحفظ والتحميل',
+      '📌 استخدام refs للوصول للبيانات الحالية',
+      '⏱️ إصلاح الـ auto-sync interval لمنع إعادة الإنشاء',
+      '🚫 إزالة الحفظ التلقائي عند تحميل البيانات من السيرفر',
+      '💾 تحسين موثوقية الحفظ الفوري عند الإضافة والحذف',
+    ]
+  },
+  {
+    version: '1.2.4',
+    date: '2024-03-31',
+    changes: [
+      '🗑️ إضافة خيار تصفير المصروفات في إعدادات الميزانية',
+      '💰 تحسين عرض المصروفات الحالية مع زر التصفير',
+    ]
+  },
+  {
+    version: '1.2.3',
+    date: '2024-03-30',
+    changes: [
+      '🐛 إصلاح جوهري: حفظ فوري عند إضافة منتجات جديدة',
+      '🐛 إصلاح فقدان البيانات عند العودة من bfcache',
+      '💾 إضافة visibilitychange لحفظ أفضل على الأجهزة المحمولة',
+      '🔒 حماية من فقدان البيانات عند إغلاق التطبيق',
+      '⚡ تحسين موثوقية الحفظ على السيرفر',
+    ]
+  },
+  {
+    version: '1.2.2',
+    date: '2024-03-29',
+    changes: [
+      '📤 إصلاح ظهور أزرار التصدير والاستيراد',
+      '🔧 تحديث رقم الإصدار في ملف التصدير',
+      '✅ التحقق الكامل من عمل التصدير والاستيراد',
+    ]
+  },
+  {
+    version: '1.2.1',
+    date: '2024-03-29',
+    changes: [
+      '🐛 إصلاح مشكلة عدم حفظ الحذف عند الخروج',
+      '🐛 إصلاح مشكلة عودة البيانات المحذوفة من bfcache',
+      '🗑️ حفظ صحيح عند حذف جميع المنتجات',
+      '💾 حفظ البيانات المحلية قبل إعادة التحميل',
+      '🔄 تحسين آلية المزامنة التلقائية',
+    ]
+  },
+  {
+    version: '1.2.0',
+    date: '2024-03-29',
+    changes: [
+      '📤 تصدير جميع البيانات إلى ملف JSON',
+      '📥 استيراد البيانات من ملف JSON',
+      '📦 حفظ نسخة احتياطية على جهازك',
+      '🔄 إمكانية نقل البيانات بين الأجهزة',
+      '💰 حفظ تتبع الأسعار والمنتجات',
+      '👨‍👩‍👧‍👦 حفظ أفراد العائلة والميزانية',
+    ]
+  },
+  {
+    version: '1.1.0',
+    date: '2024-03-27',
+    changes: [
+      '🔒 تحسين أمان كلمات المرور باستخدام bcrypt',
+      '🗑️ إصلاح مشكلة عودة المنتج المحذوف',
+      '🔄 إضافة نظام تحديث تلقائي',
+      '📋 عرض رقم الإصدار في التطبيق',
+      '⚡ تحسين أداء حفظ البيانات',
+      '🛡️ إضافة Rate Limiting للحماية من الهجمات',
+      '🔐 تحسين أمان كود الدعوة (16 حرف)',
+      '💾 حفظ تلقائي عند مغادرة الصفحة',
+      '📦 تحسين نظام النسخ الاحتياطي',
+    ]
+  },
+  {
+    version: '1.0.0',
+    date: '2024-03-27',
+    changes: [
+      '🚀 الإصدار الأول من التطبيق',
+      '🛒 إدارة قائمة المشتريات',
+      '💰 تتبع الأسعار',
+      '👨‍👩‍👧‍👦 إدارة العائلة',
+    ]
+  }
+]
+
+// هل التحديث إجباري؟ (يُستخدم للتحديثات الأمنية الحرجة)
+export const FORCE_UPDATE = false
+
+// رابط التحميل (للتحديثات اليدوية)
+export const DOWNLOAD_URL = ''
+
+// معلومات الإصدار الكاملة
+export interface VersionInfo {
+  version: string
+  releaseDate: string
+  changelog: typeof CHANGELOG
+  forceUpdate: boolean
+  downloadUrl: string
+}
+
+export function getVersionInfo(): VersionInfo {
+  return {
+    version: APP_VERSION,
+    releaseDate: RELEASE_DATE,
+    changelog: CHANGELOG,
+    forceUpdate: FORCE_UPDATE,
+    downloadUrl: DOWNLOAD_URL
+  }
+}
+
+// مقارنة الإصدارات
+export function compareVersions(v1: string, v2: string): number {
+  const parts1 = v1.split('.').map(Number)
+  const parts2 = v2.split('.').map(Number)
+  
+  for (let i = 0; i < 3; i++) {
+    const p1 = parts1[i] || 0
+    const p2 = parts2[i] || 0
+    
+    if (p1 > p2) return 1
+    if (p1 < p2) return -1
+  }
+  
+  return 0
+}
+
+// هل يوجد تحديث جديد؟
+export function isNewerVersion(currentVersion: string, latestVersion: string): boolean {
+  return compareVersions(latestVersion, currentVersion) > 0
+}

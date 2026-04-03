@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "createdAt": "2026-03-15T09:16:08.520Z",
+  "userId": "cmlwwsemq1afdhb873a7ffjcf",
+  "userEmail": "ala.meera755@gmail.com",
+  "data": {
+    "items": [
+      {
+        "id": "mlwyff88azl3c7hb26",
+        "name": "قشر القهوة كيلو",
+        "category": "custom_mlwyc1yntlfc4mh47hq",
+        "quantity": 1,
+        "notes": "3كيلوا",
+        "isPurchased": false,
+        "image": null,
+        "priority": 0,
+        "order": 0,
+        "createdAt": "2026-03-13T07:46:14.265Z",
+        "createdBy": "",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null,
+        "prices": [
+          {
+            "id": "cmmoleuex0180ub6cqnnjxdce",
+            "store": "عطار",
+            "price": 35,
+            "date": "2026-02-21T23:33:58.256Z",
+            "itemId": "mlwyff88azl3c7hb26"
+          }
+        ]
+      },
+      {
+        "id": "mlwyp7f498yb6fgjh88",
+        "name": "صبغة شعر",
+        "category": "custom_mlwyn6b98lrvgkvswmt",
+        "quantity": 1,
+        "notes": "صبغة اشقر فاتحة جدا رقم 10",
+        "isPurchased": false,
+        "image": null,
+        "priority": 0,
+        "order": 0,
+        "createdAt": "2026-03-13T07:46:14.266Z",
+        "createdBy": "",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null,
+        "prices": [
+          {
+            "id": "cmmoleuey0181ub6cwx8o0lrq",
+            "store": "مواسم العناية",
+            "price": 17,
+            "date": "2026-02-21T23:40:14.902Z",
+            "itemId": "mlwyp7f498yb6fgjh88"
+          }
+        ]
+      },
+      {
+        "id": "mlxi0t1c79bblvig7dr",
+        "name": "معجون اسنان",
+        "category": "custom_mlxhypw9apnuy4xbuhf",
+        "quantity": 1,
+        "notes": "معجون حجم كبير(1) \nاو \nعلبتان اذا حجم صغير (2)",
+        "isPurchased": false,
+        "image": null,
+        "priority": 0,
+        "order": 0,
+        "createdAt": "2026-03-13T07:46:14.267Z",
+        "createdBy": "",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null,
+        "prices": []
+      },
+      {
+        "id": "mlxi39gocp3qe646vle",
+        "name": "مناديل مشوار",
+        "category": "custom_mlxi2pkn94tb33wimyg",
+        "quantity": 1,
+        "notes": "",
+        "isPurchased": false,
+        "image": null,
+        "priority": 0,
+        "order": 0,
+        "createdAt": "2026-03-13T07:46:14.269Z",
+        "createdBy": "",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null,
+        "prices": []
+      },
+      {
+        "id": "mlxib35bdtwcgl65hiv",
+        "name": "تعديل خامة او فستان",
+        "category": "custom_mlxiaxzivy6y407xaal",
+        "quantity": 1,
+        "notes": "",
+        "isPurchased": false,
+        "image": null,
+        "priority": 0,
+        "order": 0,
+        "createdAt": "2026-03-13T07:46:14.270Z",
+        "createdBy": "",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null,
+        "prices": []
+      }
+    ],
+    "familyMembers": [],
+    "customStores": [
+      {
+        "id": "cmmoleuf20182ub6cgns3cu8x",
+        "name": "عطار",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null
+      },
+      {
+        "id": "cmmoleuf20183ub6crd7g7fz1",
+        "name": "مواسم العناية",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null
+      }
+    ],
+    "priceHistory": [
+      {
+        "id": "cmmoleuf30184ub6ck4hzokl9",
+        "productName": "صبغة شعر",
+        "store": "مواسم العناية",
+        "price": 17,
+        "date": "2026-02-21T23:40:14.902Z",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null
+      },
+      {
+        "id": "cmmoleuf30185ub6cimn5gsja",
+        "productName": "قشر القهوة كيلو",
+        "store": "عطار",
+        "price": 35,
+        "date": "2026-02-21T23:33:58.256Z",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null
+      }
+    ],
+    "budget": {
+      "id": "cmlwwsggz1affhb870us4jxa3",
+      "monthlyBudget": 1000,
+      "spentAmount": 0,
+      "startDate": "2026-02-21T00:00:00.000Z",
+      "shoppingTurn": null,
+      "userId": "cmlwwsemq1afdhb873a7ffjcf",
+      "familyId": null
+    },
+    "customCategories": [
+      {
+        "id": "custom_mlwyc1yntlfc4mh47hq",
+        "name": "عطار",
+        "icon": "📦",
+        "color": "purple",
+        "keywords": "",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null
+      },
+      {
+        "id": "custom_mlwyn6b98lrvgkvswmt",
+        "name": "مواسم العناية",
+        "icon": "📦",
+        "color": "purple",
+        "keywords": "",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null
+      },
+      {
+        "id": "custom_mlxhypw9apnuy4xbuhf",
+        "name": "صيدلية",
+        "icon": "📦",
+        "color": "purple",
+        "keywords": "",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null
+      },
+      {
+        "id": "custom_mlxi2pkn94tb33wimyg",
+        "name": "بقالة",
+        "icon": "📦",
+        "color": "purple",
+        "keywords": "",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null
+      },
+      {
+        "id": "custom_mlxiaxzivy6y407xaal",
+        "name": "خياط",
+        "icon": "📦",
+        "color": "purple",
+        "keywords": "",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "familyId": null
+      }
+    ],
+    "savedProductNames": [
+      {
+        "id": "cmmoleuf70189ub6coegeh4ab",
+        "name": "تعديل خامة او فستان",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "createdAt": "2026-03-13T07:46:14.275Z"
+      },
+      {
+        "id": "cmmoleuf8018bub6cx2059s5i",
+        "name": "صبغة شعر",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "createdAt": "2026-03-13T07:46:14.277Z"
+      },
+      {
+        "id": "cmmoleuf9018dub6czgigymvq",
+        "name": "قشر القهوة كيلو",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "createdAt": "2026-03-13T07:46:14.278Z"
+      },
+      {
+        "id": "cmmoleufa018fub6cl9vymr1m",
+        "name": "معجون اسنان",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "createdAt": "2026-03-13T07:46:14.279Z"
+      },
+      {
+        "id": "cmmoleufb018hub6ct0rebn3l",
+        "name": "مناديل مشوار",
+        "userId": "cmlwwsemq1afdhb873a7ffjcf",
+        "createdAt": "2026-03-13T07:46:14.279Z"
+      }
+    ]
+  }
+}

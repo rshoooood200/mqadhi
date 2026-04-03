@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String               @id @default(cuid())
+  name             String
+  email            String               @unique
+  password         String
+  avatar           String               @default("👤")
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  
+  // العائلة - المستخدم يمكن أن يكون منشئ عائلة أو عضو
+  familyId         String?
+  family           Family?              @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  familyRole       String               @default("member") // owner, admin, member
+  
+  budget           Budget?
+  customStores     CustomStore[]
+  customCategories CustomCategory[]
+  familyMembers    FamilyMember[]
+  items            Item[]
+  priceHistory     PriceHistoryRecord[]
+  sessions         Session[]
+  sentInvitations  FamilyInvitation[]   @relation("SentInvitations")
+  receivedInvitations FamilyInvitation[] @relation("ReceivedInvitations")
+  savedProductNames SavedProductName[]
+}
+
+model Family {
+  id          String   @id @default(cuid())
+  name        String
+  inviteCode  String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  members     User[]
+  items       Item[]
+  customStores CustomStore[]
+  customCategories CustomCategory[]
+  priceHistory PriceHistoryRecord[]
+  budget      Budget?
+  familyMembers FamilyMember[]
+  invitations FamilyInvitation[]
+}
+
+model FamilyInvitation {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  email     String
+  status    String   @default("pending") // pending, accepted, rejected
+  role      String   @default("member") // admin, member
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  
+  familyId  String
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  invitedBy String
+  inviter   User     @relation("SentInvitations", fields: [invitedBy], references: [id], onDelete: Cascade)
+  invitedUser User?  @relation("ReceivedInvitations", fields: [invitedUserId], references: [id], onDelete: SetNull)
+  invitedUserId String?
+
+  @@index([familyId])
+  @@index([code])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  name        String
+  category    String
+  quantity    Int      @default(1)
+  notes       String   @default("")
+  isPurchased Boolean  @default(false)
+  image       String?
+  priority    Int      @default(0)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  createdBy   String   @default("")
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId    String?
+  family      Family?  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  prices      Price[]
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model Price {
+  id     String   @id @default(cuid())
+  store  String
+  price  Float
+  date   DateTime @default(now())
+  itemId String
+  item   Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model FamilyMember {
+  id     String @id @default(cuid())
+  name   String
+  avatar String @default("👤")
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId String?
+  family Family? @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model CustomStore {
+  id     String @id @default(cuid())
+  name   String
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId String?
+  family Family? @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model PriceHistoryRecord {
+  id          String   @id @default(cuid())
+  productName String
+  store       String
+  price       Float
+  date        DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId    String?
+  family      Family?  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, productName])
+  @@index([familyId])
+}
+
+model Budget {
+  id            String    @id @default(cuid())
+  monthlyBudget Float     @default(0)
+  spentAmount   Float     @default(0)
+  startDate     DateTime?
+  shoppingTurn  String?
+  userId        String?   @unique
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId      String?   @unique
+  family        Family?   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+}
+
+model CustomCategory {
+  id        String   @id @default(cuid())
+  name      String
+  icon      String   @default("📦")
+  color     String   @default("gray")
+  keywords  String   @default("")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId  String?
+  family    Family?  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+// أسماء المنتجات المحفوظة للاقتراحات
+model SavedProductName {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
+}
