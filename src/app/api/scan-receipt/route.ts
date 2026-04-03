@@ -238,12 +238,3 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
-
-// زيادة حجم الـ request body المسموح
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-}
