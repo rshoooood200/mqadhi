@@ -1,0 +1,614 @@
+{
+  "version": 1,
+  "createdAt": "2026-03-15T10:34:46.662Z",
+  "userId": "cmlwiavc404syhb870aj4tqcc",
+  "userEmail": "family7ome@gmail.com",
+  "data": {
+    "items": [
+      {
+        "id": "mmclonmgx35bq88pz9",
+        "name": "كبه",
+        "category": "frozen",
+        "quantity": 2,
+        "notes": "",
+        "isPurchased": false,
+        "image": null,
+        "priority": 0,
+        "order": 0,
+        "createdAt": "2026-03-15T03:43:04.109Z",
+        "createdBy": "",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null,
+        "prices": []
+      },
+      {
+        "id": "mmo46ffjs52yiuf9il9",
+        "name": "سبرنج رول دجاج",
+        "category": "frozen",
+        "quantity": 4,
+        "notes": "",
+        "isPurchased": false,
+        "image": null,
+        "priority": 0,
+        "order": 0,
+        "createdAt": "2026-03-15T03:43:04.110Z",
+        "createdBy": "",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null,
+        "prices": []
+      }
+    ],
+    "familyMembers": [
+      {
+        "id": "mmr7l9dvnth0n9ym7qs",
+        "name": "رشيد",
+        "avatar": "👤",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "mmr7lenwejksidvsbpg",
+        "name": "محمد",
+        "avatar": "👤",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      }
+    ],
+    "customStores": [
+      {
+        "id": "cmmr7ltwv143k145llgawdkxv",
+        "name": "غذائك",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      }
+    ],
+    "priceHistory": [
+      {
+        "id": "cmmr7ltww143l145l3x4ma4u6",
+        "productName": "اكياس زبالة 55 جالون كلوب",
+        "store": "غذائك",
+        "price": 9.95,
+        "date": "2026-03-15T03:36:59.380Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143m145l27mdiknh",
+        "productName": "بصل أبيض كيس",
+        "store": "غذائك",
+        "price": 6.5,
+        "date": "2026-03-15T03:34:23.993Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143n145l9ry48olb",
+        "productName": "بصل مقلي كشنه صرة",
+        "store": "غذائك",
+        "price": 12.5,
+        "date": "2026-03-15T03:36:31.722Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143o145l1rr0f4fs",
+        "productName": "تونة سلتونة",
+        "store": "غذائك",
+        "price": 13,
+        "date": "2026-03-15T03:38:20.629Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143p145l1f20zlzz",
+        "productName": "جبنة كيري مربعات 100 جم",
+        "store": "غذائك",
+        "price": 6.5,
+        "date": "2026-03-15T03:33:02.369Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143q145lhajoq6lw",
+        "productName": "حليب سائل ابو قوس شد 6 حبات",
+        "store": "غذائك",
+        "price": 12.83,
+        "date": "2026-03-15T03:38:45.105Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143r145lxtqtj9nj",
+        "productName": "حليب سائل ابو قوس مفرد",
+        "store": "غذائك",
+        "price": 2.5,
+        "date": "2026-03-15T03:38:31.734Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143s145l8rxeckic",
+        "productName": "حليب سعودي كبير",
+        "store": "غذائك",
+        "price": 6,
+        "date": "2026-03-15T03:32:31.830Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143t145l9y53nkev",
+        "productName": "خبز توست",
+        "store": "غذائك",
+        "price": 5,
+        "date": "2026-03-15T03:33:37.196Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143u145laa8ihqfb",
+        "productName": "خضار مشكلة مجمدة",
+        "store": "غذائك",
+        "price": 3.5,
+        "date": "2026-03-15T03:35:27.568Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143v145lyju32rlh",
+        "productName": "خيار",
+        "store": "غذائك",
+        "price": 2.63,
+        "date": "2026-03-15T03:34:36.244Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143w145lkfj2antg",
+        "productName": "زبادي اكتيفيا الصافي شد 150 جم",
+        "store": "غذائك",
+        "price": 12.5,
+        "date": "2026-03-15T03:32:47.254Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143x145ltw880f2u",
+        "productName": "زيت الطبخ بخاخ",
+        "store": "غذائك",
+        "price": 12.5,
+        "date": "2026-03-15T03:36:16.096Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143y145lyxg8viym",
+        "productName": "زيت عافيه ذرة 1.5 لتر",
+        "store": "غذائك",
+        "price": 19,
+        "date": "2026-03-15T03:36:04.509Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww143z145lf9vxq334",
+        "productName": "زيتون اسود كبير بدون عجو",
+        "store": "غذائك",
+        "price": 7.5,
+        "date": "2026-03-15T03:39:13.304Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltww1440145lnfm2aujt",
+        "productName": "سمبوسة غوار",
+        "store": "غذائك",
+        "price": 8.95,
+        "date": "2026-03-15T03:35:41.185Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx1441145ldcbyjuph",
+        "productName": "صدور دجاج كيس",
+        "store": "غذائك",
+        "price": 32,
+        "date": "2026-03-15T03:34:54.506Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx1442145lipq7ypfa",
+        "productName": "طحينية بالفستق حلواني",
+        "store": "غذائك",
+        "price": 13.5,
+        "date": "2026-03-15T03:38:59.852Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx1443145lv9f04t08",
+        "productName": "طماطم",
+        "store": "غذائك",
+        "price": 2,
+        "date": "2026-03-15T03:33:51.511Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx1444145l38kcz61b",
+        "productName": "عصير فيمتو أحمر",
+        "store": "غذائك",
+        "price": 13.95,
+        "date": "2026-03-15T03:36:46.221Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx1445145lcppjpgh3",
+        "productName": "علك نعناع اكسترا 84جم",
+        "store": "غذائك",
+        "price": 16,
+        "date": "2026-03-15T03:33:16.738Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx1446145ll7osyck0",
+        "productName": "فلفل اخضر رومي",
+        "store": "غذائك",
+        "price": 2.86,
+        "date": "2026-03-15T03:34:06.627Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx1447145llij4ok4f",
+        "productName": "قشطة التاج فراولة",
+        "store": "غذائك",
+        "price": 6.5,
+        "date": "2026-03-15T03:38:04.513Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx1448145lpfrptsvx",
+        "productName": "قشطة الصافي",
+        "store": "غذائك",
+        "price": 4,
+        "date": "2026-03-15T03:31:31.112Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx1449145lg8lc1dps",
+        "productName": "كفتة دجاج الكبير 300جم",
+        "store": "غذائك",
+        "price": 9,
+        "date": "2026-03-15T03:35:52.023Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx144a145lup7u7i25",
+        "productName": "لبن",
+        "store": "غذائك",
+        "price": 14.5,
+        "date": "2026-03-15T03:32:09.611Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx144b145lpksnttnm",
+        "productName": "لحم مفروم غنم",
+        "store": "غذائك",
+        "price": 2.95,
+        "date": "2026-03-15T03:35:09.623Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      },
+      {
+        "id": "cmmr7ltwx144c145l0b2vzskb",
+        "productName": "مناديل رول مكسي مشوار 300",
+        "store": "غذائك",
+        "price": 14,
+        "date": "2026-03-15T03:37:13.828Z",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "familyId": null
+      }
+    ],
+    "budget": {
+      "id": "cmlwiax5804t0hb87d7lmc8xm",
+      "monthlyBudget": 3500,
+      "spentAmount": 1637.92,
+      "startDate": "2026-02-23T00:00:00.000Z",
+      "shoppingTurn": "mmr7l9dvnth0n9ym7qs",
+      "userId": "cmlwiavc404syhb870aj4tqcc",
+      "familyId": null
+    },
+    "customCategories": [],
+    "savedProductNames": [
+      {
+        "id": "cmmr7ltwz144g145lo73gvt4p",
+        "name": "أرز العائلة 10 كيلو",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.116Z"
+      },
+      {
+        "id": "cmmr7ltx0144i145l3hhd2bc4",
+        "name": "أفخاذ دجاج",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.117Z"
+      },
+      {
+        "id": "cmmr7ltx1144k145lcexazfcr",
+        "name": "افخاذ دجاج",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.118Z"
+      },
+      {
+        "id": "cmmr7ltx2144m145lrz7lz5ot",
+        "name": "اكياس حفظ الطعام مقاس 10 هلا",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.119Z"
+      },
+      {
+        "id": "cmmr7ltx3144o145lu3ja6ip9",
+        "name": "اكياس حفظ الطعام مقاس 12",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.120Z"
+      },
+      {
+        "id": "cmmr7ltx4144q145lchnwk6xu",
+        "name": "اكياس زبالة 55 جالون كلوب",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.120Z"
+      },
+      {
+        "id": "cmmr7ltx4144s145lrhf1gl5d",
+        "name": "اكياس زبالة 55 جالون هلا",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.121Z"
+      },
+      {
+        "id": "cmmr7ltx5144u145l8k8rzt3n",
+        "name": "بسكوت اوريو 35 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.122Z"
+      },
+      {
+        "id": "cmmr7ltx6144w145l6wdfvssp",
+        "name": "بسكوت شاي اولكر 147 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.122Z"
+      },
+      {
+        "id": "cmmr7ltx7144y145lu54chai3",
+        "name": "بصل",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.123Z"
+      },
+      {
+        "id": "cmmr7ltx71450145l9glvatcm",
+        "name": "بصل أبيض كيس",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.124Z"
+      },
+      {
+        "id": "cmmr7ltx81452145loitit29v",
+        "name": "بصل اخضر",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.125Z"
+      },
+      {
+        "id": "cmmr7ltx91454145lc112bzbc",
+        "name": "بصل مقلي كشنه صرة",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.125Z"
+      },
+      {
+        "id": "cmmr7ltxa1456145lhx45egxr",
+        "name": "بطاطس كيس صغير",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.126Z"
+      },
+      {
+        "id": "cmmr7ltxb1458145lz2haie0i",
+        "name": "بطاطس مجمد السنبلة 2.5 كيلو",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.127Z"
+      },
+      {
+        "id": "cmmr7ltxb145a145lqw99bozy",
+        "name": "بيض الوطنية لارج",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.128Z"
+      },
+      {
+        "id": "cmmr7ltxc145c145lbuh9c4ej",
+        "name": "بيض لارج",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.129Z"
+      },
+      {
+        "id": "cmmr7ltxd145e145ldo4ygqtx",
+        "name": "بيض وسط فقيه",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.129Z"
+      },
+      {
+        "id": "cmmr7ltxe145g145lghpx46pr",
+        "name": "تمر",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.130Z"
+      },
+      {
+        "id": "cmmr7ltxf145i145luociwfn6",
+        "name": "تمر مفتل كرتون صغير",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.131Z"
+      },
+      {
+        "id": "cmmr7ltxf145k145lb81g67yj",
+        "name": "تونة الوها",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.132Z"
+      },
+      {
+        "id": "cmmr7ltxg145m145lctqbdrv9",
+        "name": "تونة سلتونة",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.133Z"
+      },
+      {
+        "id": "cmmr7ltxh145o145loxzogt35",
+        "name": "ثوم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.133Z"
+      },
+      {
+        "id": "cmmr7ltxk145q145lag51bd7e",
+        "name": "جبنة كيري سائلة 500 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.136Z"
+      },
+      {
+        "id": "cmmr7ltxk145s145l69v282ka",
+        "name": "جبنة كيري صغيره",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.137Z"
+      },
+      {
+        "id": "cmmr7ltxl145u145lp3ysk3zt",
+        "name": "جبنة كيري مربعات 100 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.137Z"
+      },
+      {
+        "id": "cmmr7ltxm145w145ljb32nvh0",
+        "name": "جبنة موزريلا مبشورة ( الصافي ) 900 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.138Z"
+      },
+      {
+        "id": "cmmr7ltxm145y145lcp5j8y1c",
+        "name": "جبنة موزريلا مبشورة ( بوك ) 900 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.139Z"
+      },
+      {
+        "id": "cmmr7ltxn1460145lophkh23i",
+        "name": "جبنه مثلثه البقرات الثلاث 360 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.139Z"
+      },
+      {
+        "id": "cmmr7ltxo1462145lt0bnt7p6",
+        "name": "جبنه مثلثه بوك 240 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.140Z"
+      },
+      {
+        "id": "cmmr7ltxo1464145lpyhesg0h",
+        "name": "جبنه مثلثه كيري",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.141Z"
+      },
+      {
+        "id": "cmmr7ltxp1466145lrimz63tz",
+        "name": "جرجير",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.142Z"
+      },
+      {
+        "id": "cmmr7ltxq1468145lpnzwgieq",
+        "name": "حليب بودرة وادي فاطمة 1800 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.142Z"
+      },
+      {
+        "id": "cmmr7ltxq146a145l2vlwp6am",
+        "name": "حليب سائل ابو قوس",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.143Z"
+      },
+      {
+        "id": "cmmr7ltxr146c145l41y30get",
+        "name": "حليب سائل ابو قوس شد 6 حبات",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.144Z"
+      },
+      {
+        "id": "cmmr7ltxs146e145l40a4bqj2",
+        "name": "حليب سائل ابو قوس مفرد",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.144Z"
+      },
+      {
+        "id": "cmmr7ltxs146g145lfevw6m58",
+        "name": "حليب سعودي كبير",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.145Z"
+      },
+      {
+        "id": "cmmr7ltxt146i145lhyo46fwh",
+        "name": "حليب نيدو 1800 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.146Z"
+      },
+      {
+        "id": "cmmr7ltxu146k145ldkdoppgd",
+        "name": "خبز تورتيلا",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.146Z"
+      },
+      {
+        "id": "cmmr7ltxu146m145laqpwxzpg",
+        "name": "خبز توست",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.147Z"
+      },
+      {
+        "id": "cmmr7ltxv146o145lofrr5ea2",
+        "name": "خضار مشكلة مجمدة",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.147Z"
+      },
+      {
+        "id": "cmmr7ltxv146q145l6kswwg5l",
+        "name": "خيار",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.148Z"
+      },
+      {
+        "id": "cmmr7ltxw146s145l8jiz1ocu",
+        "name": "دجاج ساديا مجمد 1200 كرتون",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.148Z"
+      },
+      {
+        "id": "cmmr7ltxx146u145lnkynhvsg",
+        "name": "زبادي اكتيفيا الصافي شد 150 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.149Z"
+      },
+      {
+        "id": "cmmr7ltxx146w145lxu56q1cm",
+        "name": "زبادي شد 120 جم",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.150Z"
+      },
+      {
+        "id": "cmmr7ltxy146y145lltwxgjm5",
+        "name": "سبرنج رول دجاج",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.150Z"
+      },
+      {
+        "id": "cmmr7ltxz1470145lspk6ovr4",
+        "name": "كبه",
+        "userId": "cmlwiavc404syhb870aj4tqcc",
+        "createdAt": "2026-03-15T03:43:04.151Z"
+      }
+    ]
+  }
+}

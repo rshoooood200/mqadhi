@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "createdAt": "2026-03-28T18:51:02.864Z",
+  "userId": "cmlqlmvxw0000ueuip3x7h7gd",
+  "userEmail": "resheedgames@gmail.com",
+  "data": {
+    "items": [
+      {
+        "id": "mlqs7gbrf2e36evqvgp",
+        "name": "كرتون دجاج",
+        "category": "poultry",
+        "quantity": 1,
+        "notes": "كرتون",
+        "isPurchased": false,
+        "image": null,
+        "priority": 0,
+        "order": 0,
+        "createdAt": "2026-02-19T15:10:27.099Z",
+        "createdBy": "",
+        "userId": "cmlqlmvxw0000ueuip3x7h7gd",
+        "familyId": null,
+        "prices": [
+          {
+            "id": "cmltlld7f000cisos534u110d",
+            "store": "عام",
+            "price": 160,
+            "date": "2026-02-17T15:53:12.976Z",
+            "itemId": "mlqs7gbrf2e36evqvgp"
+          }
+        ]
+      },
+      {
+        "id": "mlqssl1j6j31liazmw5",
+        "name": "لبن",
+        "category": "dairy",
+        "quantity": 2,
+        "notes": "",
+        "isPurchased": false,
+        "image": null,
+        "priority": 0,
+        "order": 0,
+        "createdAt": "2026-02-19T15:10:27.101Z",
+        "createdBy": "",
+        "userId": "cmlqlmvxw0000ueuip3x7h7gd",
+        "familyId": null,
+        "prices": [
+          {
+            "id": "cmltlld7h000disoszznldm1n",
+            "store": "عام",
+            "price": 14.5,
+            "date": "2026-02-17T13:17:09.231Z",
+            "itemId": "mlqssl1j6j31liazmw5"
+          }
+        ]
+      }
+    ],
+    "familyMembers": [
+      {
+        "id": "mlqln4fkvt99buvljqh",
+        "name": "رشيد",
+        "avatar": "👤",
+        "userId": "cmlqlmvxw0000ueuip3x7h7gd",
+        "familyId": null
+      },
+      {
+        "id": "mlqln9svrhnq8w88lda",
+        "name": "محمد",
+        "avatar": "👤",
+        "userId": "cmlqlmvxw0000ueuip3x7h7gd",
+        "familyId": null
+      }
+    ],
+    "customStores": [
+      {
+        "id": "cmltlld7j000eisosr306ni38",
+        "name": "عام",
+        "userId": "cmlqlmvxw0000ueuip3x7h7gd",
+        "familyId": null
+      }
+    ],
+    "priceHistory": [
+      {
+        "id": "cmltlld7j000fisosxpaejlgu",
+        "productName": "كرتون دجاج",
+        "store": "عام",
+        "price": 160,
+        "date": "2026-02-17T15:53:12.976Z",
+        "userId": "cmlqlmvxw0000ueuip3x7h7gd",
+        "familyId": null
+      }
+    ],
+    "budget": {
+      "id": "cmlqlmxuc0002ueuilefos2o3",
+      "monthlyBudget": 3000,
+      "spentAmount": 60,
+      "startDate": "2026-02-17T00:00:00.000Z",
+      "shoppingTurn": "mlqln4fkvt99buvljqh",
+      "userId": "cmlqlmvxw0000ueuip3x7h7gd",
+      "familyId": null
+    },
+    "customCategories": [],
+    "savedProductNames": []
+  }
+}

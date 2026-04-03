@@ -1,0 +1,1730 @@
+================================================================================
+                        تطبيق "مقاضي" - الكود الكامل
+================================================================================
+                   ضع كل ملف في مساره الصحيح في Visual Studio Code
+================================================================================
+
+
+================================================================================
+📁 1. package.json
+================================================================================
+{
+  "name": "home-items-manager",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "prisma generate && next build",
+    "start": "next start -p 3000",
+    "lint": "eslint .",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@prisma/client": "5",
+    "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-progress": "^1.1.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.3.1",
+    "lucide-react": "^0.525.0",
+    "next": "^16.1.1",
+    "prisma": "5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss-animate": "^1.0.7",
+    "z-ai-web-dev-sdk": "^0.0.16"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "25.2.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^16.1.1",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.3.5",
+    "typescript": "^5"
+  }
+}
+
+
+================================================================================
+📁 2. next.config.ts
+================================================================================
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  reactStrictMode: false,
+};
+
+export default nextConfig;
+
+
+================================================================================
+📁 3. tsconfig.json
+================================================================================
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "noImplicitAny": false,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+
+
+================================================================================
+📁 4. prisma/schema.prisma
+================================================================================
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String               @id @default(cuid())
+  name             String
+  email            String               @unique
+  password         String
+  avatar           String               @default("👤")
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  
+  familyId         String?
+  family           Family?              @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  familyRole       String               @default("member")
+  
+  budget           Budget?
+  customStores     CustomStore[]
+  customCategories CustomCategory[]
+  familyMembers    FamilyMember[]
+  items            Item[]
+  priceHistory     PriceHistoryRecord[]
+  sessions         Session[]
+  sentInvitations  FamilyInvitation[]   @relation("SentInvitations")
+  receivedInvitations FamilyInvitation[] @relation("ReceivedInvitations")
+  savedProductNames SavedProductName[]
+}
+
+model Family {
+  id          String   @id @default(cuid())
+  name        String
+  inviteCode  String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  members     User[]
+  items       Item[]
+  customStores CustomStore[]
+  customCategories CustomCategory[]
+  priceHistory PriceHistoryRecord[]
+  budget      Budget?
+  familyMembers FamilyMember[]
+  invitations FamilyInvitation[]
+}
+
+model FamilyInvitation {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  email     String
+  status    String   @default("pending")
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  
+  familyId  String
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  invitedBy String
+  inviter   User     @relation("SentInvitations", fields: [invitedBy], references: [id], onDelete: Cascade)
+  invitedUser User?  @relation("ReceivedInvitations", fields: [invitedUserId], references: [id], onDelete: SetNull)
+  invitedUserId String?
+
+  @@index([familyId])
+  @@index([code])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Item {
+  id          String   @id @default(cuid())
+  name        String
+  category    String
+  quantity    Int      @default(1)
+  notes       String   @default("")
+  isPurchased Boolean  @default(false)
+  image       String?
+  priority    Int      @default(0)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  createdBy   String   @default("")
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId    String?
+  family      Family?  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  prices      Price[]
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model Price {
+  id     String   @id @default(cuid())
+  store  String
+  price  Float
+  date   DateTime @default(now())
+  itemId String
+  item   Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model FamilyMember {
+  id     String @id @default(cuid())
+  name   String
+  avatar String @default("👤")
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId String?
+  family Family? @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model CustomStore {
+  id     String @id @default(cuid())
+  name   String
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId String?
+  family Family? @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model PriceHistoryRecord {
+  id          String   @id @default(cuid())
+  productName String
+  store       String
+  price       Float
+  date        DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId    String?
+  family      Family?  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, productName])
+  @@index([familyId])
+}
+
+model Budget {
+  id            String    @id @default(cuid())
+  monthlyBudget Float     @default(0)
+  spentAmount   Float     @default(0)
+  startDate     DateTime?
+  shoppingTurn  String?
+  userId        String?   @unique
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId      String?   @unique
+  family        Family?   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+}
+
+model CustomCategory {
+  id        String   @id @default(cuid())
+  name      String
+  icon      String   @default("📦")
+  color     String   @default("gray")
+  keywords  String   @default("")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId  String?
+  family    Family?  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model SavedProductName {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+
+================================================================================
+📁 5. .env (أنشئ هذا الملف وأضف قاعدة البيانات)
+================================================================================
+DATABASE_URL="file:./dev.db"
+
+
+================================================================================
+📁 6. src/lib/prisma.ts
+================================================================================
+import { PrismaClient } from '@prisma/client'
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+
+================================================================================
+📁 7. src/app/layout.tsx
+================================================================================
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "مقاضي - تنظيم المشتريات بذكاء",
+  description: "تطبيق مقاضي الذكي لتنظيم قائمة المشتريات وتتبع الأسعار وإدارة ميزانية العائلة",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icons/icon-72x72.png", sizes: "72x72", type: "image/png" },
+      { url: "/icons/icon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/icons/icon-128x128.png", sizes: "128x128", type: "image/png" },
+      { url: "/icons/icon-144x144.png", sizes: "144x144", type: "image/png" },
+      { url: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-384x384.png", sizes: "384x384", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "مقاضي",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#10b981" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c1222" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="مقاضي" />
+      </head>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(
+                    function(registration) {
+                      console.log('SW registered: ', registration.scope);
+                    },
+                    function(error) {
+                      console.log('SW registration failed: ', error);
+                    }
+                  );
+                });
+              }
+            `,
+          }}
+        />
+      </body>
+    </html>
+  );
+}
+
+
+================================================================================
+📁 8. src/app/globals.css
+================================================================================
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  
+  --color-emerald-primary: var(--emerald-primary);
+  --color-emerald-light: var(--emerald-light);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #475569;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #ecfdf5;
+  --accent-foreground: #059669;
+  --destructive: #ef4444;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #10b981;
+  --emerald-primary: #10b981;
+  --emerald-light: #ecfdf5;
+  --surface: #ffffff;
+  --surface-hover: #f8fafc;
+  --chart-1: #10b981;
+  --chart-2: #3b82f6;
+  --chart-3: #f59e0b;
+  --chart-4: #ef4444;
+  --chart-5: #8b5cf6;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #10b981;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ecfdf5;
+  --sidebar-accent-foreground: #059669;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #10b981;
+}
+
+.dark {
+  --background: #0c1222;
+  --foreground: #f1f5f9;
+  --card: #1a2235;
+  --card-foreground: #f1f5f9;
+  --popover: #1a2235;
+  --popover-foreground: #f1f5f9;
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --secondary: #243044;
+  --secondary-foreground: #cbd5e1;
+  --muted: #243044;
+  --muted-foreground: #94a3b8;
+  --accent: #134e4a;
+  --accent-foreground: #5eead4;
+  --destructive: #f87171;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #10b981;
+  --emerald-primary: #10b981;
+  --emerald-light: #134e4a;
+  --surface: #1a2235;
+  --surface-hover: #243044;
+  --chart-1: #34d399;
+  --chart-2: #60a5fa;
+  --chart-3: #fbbf24;
+  --chart-4: #f87171;
+  --chart-5: #a78bfa;
+  --sidebar: #1a2235;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-primary: #10b981;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #134e4a;
+  --sidebar-accent-foreground: #5eead4;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #10b981;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.dark .glass {
+  background: rgba(26, 34, 53, 0.8);
+}
+
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
+}
+
+.dark .card-hover:hover {
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #243044 25%, #2d3b4f 50%, #243044 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.4s ease-out forwards;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s infinite;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.btn-press {
+  transition: all 0.15s ease;
+}
+
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes progress {
+  from { width: 0%; }
+}
+
+.animate-progress {
+  animation: progress 1s ease-out forwards;
+}
+
+@keyframes checkmark {
+  0% { stroke-dashoffset: 100; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.checkmark-animate {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: checkmark 0.4s ease-out forwards;
+}
+
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.input-focus:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+@keyframes shine {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.badge-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.badge-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shine 2s infinite;
+}
+
+
+================================================================================
+📁 9. src/app/api/auth/register/route.ts
+================================================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { randomBytes } from 'crypto'
+
+const hashPassword = (password: string): string => {
+  let hash = 0
+  for (let i = 0; i < password.length; i++) {
+    const char = password.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return hash.toString(36) + randomBytes(16).toString('hex')
+}
+
+const generateSessionToken = () => randomBytes(32).toString('hex')
+
+export async function POST(request: NextRequest) {
+  try {
+    const { name, email, password } = await request.json()
+
+    if (!name || !email || !password) {
+      return NextResponse.json({ error: 'جميع الحقول مطلوبة' }, { status: 400 })
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }, { status: 400 })
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() }
+    })
+
+    if (existingUser) {
+      return NextResponse.json({ error: 'البريد الإلكتروني مسجل مسبقاً' }, { status: 400 })
+    }
+
+    const hashedPassword = hashPassword(password)
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+      }
+    })
+
+    const sessionToken = generateSessionToken()
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 30)
+
+    await prisma.session.create({
+      data: {
+        id: sessionToken,
+        userId: user.id,
+        expiresAt
+      }
+    })
+
+    const response = NextResponse.json({
+      user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar }
+    })
+
+    response.cookies.set('session-token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30
+    })
+
+    return response
+  } catch (error) {
+    console.error('Register error:', error)
+    return NextResponse.json({ error: 'حدث خطأ في إنشاء الحساب' }, { status: 500 })
+  }
+}
+
+
+================================================================================
+📁 10. src/app/api/auth/login/route.ts
+================================================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { randomBytes } from 'crypto'
+
+const verifyPassword = (password: string, hashedPassword: string): boolean => {
+  let hash = 0
+  for (let i = 0; i < password.length; i++) {
+    const char = password.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return hashedPassword.startsWith(hash.toString(36))
+}
+
+const generateSessionToken = () => randomBytes(32).toString('hex')
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email, password } = await request.json()
+
+    if (!email || !password) {
+      return NextResponse.json({ error: 'البريد الإلكتروني وكلمة المرور مطلوبان' }, { status: 400 })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'البريد الإلكتروني غير مسجل' }, { status: 401 })
+    }
+
+    if (!verifyPassword(password, user.password)) {
+      return NextResponse.json({ error: 'كلمة المرور غير صحيحة' }, { status: 401 })
+    }
+
+    const sessionToken = generateSessionToken()
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 30)
+
+    await prisma.session.create({
+      data: {
+        id: sessionToken,
+        userId: user.id,
+        expiresAt
+      }
+    })
+
+    const response = NextResponse.json({
+      user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar }
+    })
+
+    response.cookies.set('session-token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30
+    })
+
+    return response
+  } catch (error) {
+    console.error('Login error:', error)
+    return NextResponse.json({ error: 'حدث خطأ في تسجيل الدخول' }, { status: 500 })
+  }
+}
+
+
+================================================================================
+📁 11. src/app/api/auth/logout/route.ts
+================================================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+
+export async function POST(request: NextRequest) {
+  try {
+    const sessionToken = request.cookies.get('session-token')?.value
+
+    if (sessionToken) {
+      await prisma.session.deleteMany({
+        where: { id: sessionToken }
+      })
+    }
+
+    const response = NextResponse.json({ success: true })
+    response.cookies.delete('session-token')
+
+    return response
+  } catch (error) {
+    console.error('Logout error:', error)
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 })
+  }
+}
+
+
+================================================================================
+📁 12. src/app/api/auth/me/route.ts
+================================================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+
+export async function GET(request: NextRequest) {
+  try {
+    const sessionToken = request.cookies.get('session-token')?.value
+
+    if (!sessionToken) {
+      return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
+    }
+
+    const session = await prisma.session.findFirst({
+      where: {
+        id: sessionToken,
+        expiresAt: { gt: new Date() }
+      },
+      include: { user: true }
+    })
+
+    if (!session) {
+      await prisma.session.deleteMany({
+        where: { expiresAt: { lt: new Date() } }
+      }).catch(() => {})
+
+      return NextResponse.json({ error: 'الجلسة منتهية' }, { status: 401 })
+    }
+
+    return NextResponse.json({
+      user: {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+        avatar: session.user.avatar
+      }
+    })
+  } catch (error) {
+    console.error('Get user error:', error)
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 })
+  }
+}
+
+
+================================================================================
+📁 13. src/app/api/sync/route.ts
+================================================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+
+async function getCurrentUser(request: NextRequest) {
+  const sessionToken = request.cookies.get('session-token')?.value
+  if (!sessionToken) return null
+
+  const session = await prisma.session.findFirst({
+    where: { id: sessionToken, expiresAt: { gt: new Date() } },
+    include: { user: true }
+  })
+  return session?.user || null
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) {
+      return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
+    }
+
+    const [items, familyMembers, customStores, priceHistory, budget, customCategories] = await Promise.all([
+      prisma.item.findMany({ where: { userId: user.id }, include: { prices: true } }),
+      prisma.familyMember.findMany({ where: { userId: user.id } }),
+      prisma.customStore.findMany({ where: { userId: user.id } }),
+      prisma.priceHistoryRecord.findMany({ where: { userId: user.id } }),
+      prisma.budget.findUnique({ where: { userId: user.id } }),
+      prisma.customCategory.findMany({ where: { userId: user.id } })
+    ])
+
+    let savedProductNames: string[] = []
+    try {
+      const saved = await prisma.savedProductName.findMany({ where: { userId: user.id } })
+      savedProductNames = saved.map(s => s.name)
+    } catch {}
+
+    const formattedPriceHistory: Record<string, { store: string; price: number; date: string }[]> = {}
+    for (const record of priceHistory) {
+      const key = record.productName.toLowerCase()
+      if (!formattedPriceHistory[key]) formattedPriceHistory[key] = []
+      formattedPriceHistory[key].push({
+        store: record.store,
+        price: record.price,
+        date: record.date.toISOString()
+      })
+    }
+
+    const formattedItems = items.map(item => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      quantity: item.quantity,
+      notes: item.notes,
+      isPurchased: item.isPurchased,
+      image: item.image,
+      prices: item.prices.map(p => ({ store: p.store, price: p.price, date: p.date.toISOString() })),
+      createdAt: item.createdAt.toISOString()
+    }))
+
+    const formattedFamilyMembers = familyMembers.map(m => ({
+      id: m.id, name: m.name, avatar: m.avatar, email: ''
+    }))
+
+    const formattedCustomCategories = customCategories.map(c => ({
+      id: c.id, name: c.name, icon: c.icon, color: c.color,
+      keywords: c.keywords ? c.keywords.split(',').map(k => k.trim()).filter(k => k) : []
+    }))
+
+    return NextResponse.json({
+      items: formattedItems,
+      familyMembers: formattedFamilyMembers,
+      customStores: customStores.map(s => s.name),
+      priceHistory: formattedPriceHistory,
+      budget: budget ? {
+        monthlyBudget: budget.monthlyBudget,
+        spentAmount: budget.spentAmount,
+        startDate: budget.startDate?.toISOString() || '',
+        shoppingTurn: budget.shoppingTurn || ''
+      } : null,
+      customCategories: formattedCustomCategories,
+      savedProductNames
+    })
+  } catch (error) {
+    console.error('Sync get error:', error)
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) {
+      return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
+    }
+
+    const { items, familyMembers, customStores, priceHistory, budget, customCategories, savedProductNames } = await request.json()
+
+    await Promise.all([
+      prisma.item.deleteMany({ where: { userId: user.id } }),
+      prisma.familyMember.deleteMany({ where: { userId: user.id } }),
+      prisma.customStore.deleteMany({ where: { userId: user.id } }),
+      prisma.priceHistoryRecord.deleteMany({ where: { userId: user.id } }),
+      prisma.customCategory.deleteMany({ where: { userId: user.id } }),
+    ])
+
+    if (items && items.length > 0) {
+      for (const item of items) {
+        await prisma.item.create({
+          data: {
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            quantity: item.quantity || 1,
+            notes: item.notes || '',
+            isPurchased: item.isPurchased || false,
+            image: item.image || null,
+            userId: user.id,
+            prices: {
+              create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
+                store: p.store, price: p.price, date: new Date(p.date)
+              }))
+            }
+          }
+        })
+      }
+    }
+
+    if (familyMembers && familyMembers.length > 0) {
+      await prisma.familyMember.createMany({
+        data: familyMembers.map((m: { id: string; name: string; avatar: string }) => ({
+          id: m.id, name: m.name, avatar: m.avatar || '👤', userId: user.id
+        }))
+      })
+    }
+
+    if (customStores && customStores.length > 0) {
+      await prisma.customStore.createMany({
+        data: customStores.map((name: string) => ({ name, userId: user.id }))
+      })
+    }
+
+    if (priceHistory && Object.keys(priceHistory).length > 0) {
+      const records: { productName: string; store: string; price: number; date: Date; userId: string }[] = []
+      for (const [productName, prices] of Object.entries(priceHistory)) {
+        for (const p of (prices as { store: string; price: number; date: string }[])) {
+          records.push({ productName, store: p.store, price: p.price, date: new Date(p.date), userId: user.id })
+        }
+      }
+      if (records.length > 0) await prisma.priceHistoryRecord.createMany({ data: records })
+    }
+
+    if (budget) {
+      await prisma.budget.upsert({
+        where: { userId: user.id },
+        update: {
+          monthlyBudget: budget.monthlyBudget || 0,
+          spentAmount: budget.spentAmount || 0,
+          startDate: budget.startDate ? new Date(budget.startDate) : null,
+          shoppingTurn: budget.shoppingTurn || null
+        },
+        create: {
+          monthlyBudget: budget.monthlyBudget || 0,
+          spentAmount: budget.spentAmount || 0,
+          startDate: budget.startDate ? new Date(budget.startDate) : null,
+          shoppingTurn: budget.shoppingTurn || null,
+          userId: user.id
+        }
+      })
+    }
+
+    if (customCategories && customCategories.length > 0) {
+      await prisma.customCategory.createMany({
+        data: customCategories.map((cat: { id: string; name: string; icon: string; color: string; keywords: string[] }) => ({
+          id: cat.id, name: cat.name, icon: cat.icon || '📦', color: cat.color || 'gray',
+          keywords: Array.isArray(cat.keywords) ? cat.keywords.join(',') : '', userId: user.id
+        }))
+      })
+    }
+
+    if (savedProductNames && Array.isArray(savedProductNames)) {
+      for (const name of savedProductNames) {
+        if (name && typeof name === 'string' && name.trim()) {
+          try {
+            await prisma.savedProductName.create({ data: { name: name.trim(), userId: user.id } })
+          } catch {}
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Sync post error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'حدث خطأ غير متوقع'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
+  }
+}
+
+
+================================================================================
+📁 14. src/app/api/suggestions/delete/route.ts
+================================================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+
+async function getCurrentUser(request: NextRequest) {
+  const sessionToken = request.cookies.get('session-token')?.value
+  if (!sessionToken) return null
+  const session = await prisma.session.findFirst({
+    where: { id: sessionToken, expiresAt: { gt: new Date() } },
+    include: { user: true }
+  })
+  return session?.user || null
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) {
+      return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const productName = body.productName
+
+    if (!productName || typeof productName !== 'string') {
+      return NextResponse.json({ error: 'اسم المنتج مطلوب' }, { status: 400 })
+    }
+
+    const productNameLower = productName.toLowerCase().trim()
+    
+    let savedNamesDeleted = 0, priceHistoryDeleted = 0, itemsDeleted = 0
+
+    try {
+      const allSavedNames = await prisma.savedProductName.findMany({
+        where: { userId: user.id }, select: { id: true, name: true }
+      })
+      const idsToDelete = allSavedNames.filter(s => s.name.toLowerCase().trim() === productNameLower).map(s => s.id)
+      if (idsToDelete.length > 0) {
+        await prisma.savedProductName.deleteMany({ where: { id: { in: idsToDelete } } })
+        savedNamesDeleted = idsToDelete.length
+      }
+    } catch {}
+
+    try {
+      const deleted = await prisma.priceHistoryRecord.deleteMany({
+        where: { userId: user.id, productName: productNameLower }
+      })
+      priceHistoryDeleted = deleted.count
+    } catch {}
+
+    try {
+      const allItems = await prisma.item.findMany({
+        where: { userId: user.id }, select: { id: true, name: true }
+      })
+      const itemIds = allItems.filter(item => item.name.toLowerCase().trim() === productNameLower).map(item => item.id)
+      if (itemIds.length > 0) {
+        const deleted = await prisma.item.deleteMany({ where: { id: { in: itemIds } } })
+        itemsDeleted = deleted.count
+      }
+    } catch {}
+
+    return NextResponse.json({
+      success: true,
+      deleted: { savedNames: savedNamesDeleted, priceHistory: priceHistoryDeleted, items: itemsDeleted }
+    })
+  } catch (error) {
+    console.error('Delete suggestion error:', error)
+    return NextResponse.json({ error: 'حدث خطأ في الحذف' }, { status: 500 })
+  }
+}
+
+
+================================================================================
+📁 15. src/app/api/classify/route.ts
+================================================================================
+import ZAI from 'z-ai-web-dev-sdk';
+import { NextResponse, NextRequest } from 'next/server';
+
+const CATEGORIES = [
+  { id: 'dairy', name: 'ألبان', keywords: ['حليب', 'لبن', 'جبن', 'جبنة', 'زبادي', 'روب', 'قشطة', 'زبدة'] },
+  { id: 'meat', name: 'لحوم', keywords: ['لحم', 'لحمة', 'بقر', 'خروف', 'كباب', 'كفتة', 'مفروم'] },
+  { id: 'poultry', name: 'دواجن', keywords: ['دجاج', 'فراخ', 'فرخ', 'فروج', 'ديك', 'رومي', 'بط', 'وز'] },
+  { id: 'seafood', name: 'أسماك', keywords: ['سمك', 'ربيان', 'روبيان', 'جمبري', 'تونة', 'سالمون'] },
+  { id: 'bakery', name: 'مخبوزات', keywords: ['خبز', 'صمون', 'كرواسون', 'توست', 'فينو', 'كعك'] },
+  { id: 'vegetables', name: 'خضار', keywords: ['طماطم', 'بصل', 'ثوم', 'بطاطس', 'جزر', 'خيار', 'فلفل', 'خس'] },
+  { id: 'fruits', name: 'فواكه', keywords: ['تفاح', 'موز', 'برتقال', 'ليمون', 'عنب', 'رمان', 'فراولة', 'مانجو'] },
+  { id: 'frozen', name: 'مجمدات', keywords: ['مجمد', 'مثلج', 'آيس كريم', 'فريزر', 'سمبوسة'] },
+  { id: 'legumes', name: 'بقوليات', keywords: ['فول', 'عدس', 'حمص', 'فاصوليا', 'لوبيا', 'بازلاء'] },
+  { id: 'spices', name: 'توابل وبهارات', keywords: ['توابل', 'بهارات', 'ملح', 'سكر', 'فلفل', 'كركم', 'قرفة', 'زعفران'] },
+  { id: 'sweets', name: 'حلويات', keywords: ['حلويات', 'شوكولاتة', 'كيك', 'بسكويت', 'حلاوة', 'كنافة', 'بقلاوة'] },
+  { id: 'drinks', name: 'مشروبات', keywords: ['مشروب', 'عصير', 'ماء', 'بيبسي', 'كولا', 'شاي', 'قهوة', 'نسكافيه'] },
+  { id: 'snacks', name: 'سناكس', keywords: ['سناكس', 'شيبس', 'مكسرات', 'فشار', 'بوب كورن'] },
+  { id: 'cleaning', name: 'منظفات', keywords: ['منظف', 'صابون', 'مسحوق', 'كلور', 'مطهر', 'ديتول', 'فيري', 'برسيل'] },
+  { id: 'personal', name: 'عناية شخصية', keywords: ['شامبو', 'كريم', 'لوشن', 'معجون', 'فرشاة', 'مزيل', 'حفاضات'] },
+  { id: 'kitchen', name: 'مطبخ وأدوات', keywords: ['قدر', 'مقلاة', 'طقم', 'صحن', 'كوب', 'ملعقة', 'سكين'] },
+  { id: 'other', name: 'أخرى', keywords: [] }
+];
+
+export async function POST(request: NextRequest) {
+  try {
+    const zai = await ZAI.create();
+    const { itemName, customCategories } = await request.json();
+
+    if (!itemName || typeof itemName !== 'string') {
+      return NextResponse.json({ error: 'اسم الغرض مطلوب' }, { status: 400 });
+    }
+
+    const itemNameLower = itemName.toLowerCase();
+    let keywordCategory: string | null = null;
+    
+    for (const cat of CATEGORIES) {
+      if (cat.keywords.some(keyword => itemNameLower.includes(keyword))) {
+        keywordCategory = cat.id;
+        break;
+      }
+    }
+
+    if (!keywordCategory && customCategories && Array.isArray(customCategories)) {
+      for (const cat of customCategories) {
+        if (cat.keywords && Array.isArray(cat.keywords) && cat.keywords.length > 0) {
+          if (cat.keywords.some((keyword: string) => itemNameLower.includes(keyword.toLowerCase()))) {
+            return NextResponse.json({ category: cat.id, categoryName: cat.name, method: 'custom_keywords' });
+          }
+        }
+      }
+    }
+
+    if (keywordCategory) {
+      const categoryInfo = CATEGORIES.find(c => c.id === keywordCategory);
+      return NextResponse.json({ category: keywordCategory, categoryName: categoryInfo?.name || 'أخرى', method: 'keywords' });
+    }
+
+    const allCategories = [...CATEGORIES];
+    if (customCategories && Array.isArray(customCategories)) {
+      for (const cat of customCategories) {
+        allCategories.push({ id: cat.id, name: cat.name, keywords: cat.keywords || [] });
+      }
+    }
+
+    const categoriesDescription = allCategories.map(c => 
+      `- ${c.id}: ${c.name}${c.keywords && c.keywords.length > 0 ? ' (مثل: ' + c.keywords.slice(0, 3).join(', ') + ')' : ''}`
+    ).join('\n');
+
+    const completion = await zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: `أنت مساعد ذكي لتصنيف منتجات المشتريات العربية. التصنيفات المتاحة:\n${categoriesDescription}\n\nأرجع ONLY اسم التصنيف (id) بدون أي كلمات إضافية.` },
+        { role: 'user', content: `صنف هذا الغرض: "${itemName}"` }
+      ],
+      temperature: 0.1,
+      max_tokens: 20
+    });
+
+    const aiCategory = completion.choices[0]?.message?.content?.trim().toLowerCase() || 'other';
+    const validCategories = allCategories.map(c => c.id);
+    const finalCategory = validCategories.includes(aiCategory) ? aiCategory : 'other';
+
+    let categoryInfo = CATEGORIES.find(c => c.id === finalCategory);
+    let categoryName = categoryInfo?.name || 'أخرى';
+    
+    if (!categoryInfo && customCategories && Array.isArray(customCategories)) {
+      const customCat = customCategories.find((c: { id: string; name: string }) => c.id === finalCategory);
+      if (customCat) categoryName = customCat.name;
+    }
+
+    return NextResponse.json({ category: finalCategory, categoryName, method: 'ai' });
+  } catch (error) {
+    console.error('Classification error:', error);
+    return NextResponse.json({ error: 'حدث خطأ في التصنيف', category: 'other', categoryName: 'أخرى' }, { status: 500 });
+  }
+}
+
+
+================================================================================
+📁 16. src/app/api/family/route.ts
+================================================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { randomBytes } from 'crypto'
+
+async function getCurrentUser(request: NextRequest) {
+  const sessionToken = request.cookies.get('session-token')?.value
+  if (!sessionToken) return null
+  const session = await prisma.session.findFirst({
+    where: { id: sessionToken, expiresAt: { gt: new Date() } },
+    include: { user: true }
+  })
+  return session?.user || null
+}
+
+const generateInviteCode = () => randomBytes(4).toString('hex').toUpperCase()
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
+
+    const userWithFamily = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { family: { include: { members: { select: { id: true, name: true, email: true, avatar: true, familyRole: true } } } } }
+    })
+
+    let invitations = []
+    if (userWithFamily?.family) {
+      invitations = await prisma.familyInvitation.findMany({
+        where: { familyId: userWithFamily.family.id, status: 'pending', expiresAt: { gt: new Date() } }
+      })
+    }
+
+    return NextResponse.json({
+      user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar, familyId: userWithFamily?.familyId, familyRole: userWithFamily?.familyRole },
+      family: userWithFamily?.family ? { id: userWithFamily.family.id, name: userWithFamily.family.name, inviteCode: userWithFamily.family.inviteCode, members: userWithFamily.family.members } : null,
+      invitations
+    })
+  } catch (error) {
+    console.error('Get family error:', error)
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
+
+    const body = await request.json()
+    const { action, familyName, inviteCode } = body
+
+    if (action === 'create') {
+      const inviteCode = generateInviteCode()
+      const family = await prisma.family.create({
+        data: { name: familyName || `عائلة ${user.name}`, inviteCode, members: { connect: { id: user.id } } }
+      })
+      await prisma.user.update({ where: { id: user.id }, data: { familyId: family.id, familyRole: 'owner' } })
+      return NextResponse.json({ success: true, family: { id: family.id, name: family.name, inviteCode: family.inviteCode } })
+    }
+
+    if (action === 'join') {
+      const family = await prisma.family.findUnique({ where: { inviteCode } })
+      if (!family) return NextResponse.json({ error: 'كود الدعوة غير صحيح' }, { status: 400 })
+      const existingMember = await prisma.user.findFirst({ where: { id: user.id, familyId: family.id } })
+      if (existingMember) return NextResponse.json({ error: 'أنت عضو بالفعل في هذه العائلة' }, { status: 400 })
+      await prisma.user.update({ where: { id: user.id }, data: { familyId: family.id, familyRole: 'member' } })
+      return NextResponse.json({ success: true, family: { id: family.id, name: family.name } })
+    }
+
+    if (action === 'leave') {
+      await prisma.user.update({ where: { id: user.id }, data: { familyId: null, familyRole: 'member' } })
+      return NextResponse.json({ success: true })
+    }
+
+    return NextResponse.json({ error: 'إجراء غير معروف' }, { status: 400 })
+  } catch (error) {
+    console.error('Family action error:', error)
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 })
+  }
+}
+
+
+================================================================================
+📁 17. src/app/api/invite/route.ts
+================================================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { randomBytes } from 'crypto'
+
+async function getCurrentUser(request: NextRequest) {
+  const sessionToken = request.cookies.get('session-token')?.value
+  if (!sessionToken) return null
+  const session = await prisma.session.findFirst({
+    where: { id: sessionToken, expiresAt: { gt: new Date() } },
+    include: { user: true }
+  })
+  return session?.user || null
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
+    if (!user.familyId) return NextResponse.json({ error: 'أنت لست عضو في عائلة' }, { status: 400 })
+    if (user.familyRole !== 'owner' && user.familyRole !== 'admin') return NextResponse.json({ error: 'ليس لديك صلاحية الدعوة' }, { status: 403 })
+
+    const { email, role = 'member' } = await request.json()
+    if (!email?.trim()) return NextResponse.json({ error: 'البريد الإلكتروني مطلوب' }, { status: 400 })
+
+    const existingInvitation = await prisma.familyInvitation.findFirst({
+      where: { familyId: user.familyId, email: email.toLowerCase(), status: 'pending', expiresAt: { gt: new Date() } }
+    })
+    if (existingInvitation) return NextResponse.json({ error: 'يوجد دعوة نشطة لهذا البريد بالفعل' }, { status: 400 })
+
+    const existingMember = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
+    if (existingMember?.familyId === user.familyId) return NextResponse.json({ error: 'هذا المستخدم عضو بالفعل في العائلة' }, { status: 400 })
+
+    const code = randomBytes(6).toString('hex').toUpperCase()
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 7)
+
+    const invitation = await prisma.familyInvitation.create({
+      data: { code, email: email.toLowerCase(), role, familyId: user.familyId, invitedBy: user.id, expiresAt }
+    })
+
+    const family = await prisma.family.findUnique({ where: { id: user.familyId } })
+    return NextResponse.json({ success: true, invitation, shareLink: `${process.env.NEXT_PUBLIC_APP_URL || ''}/?invite=${code}`, familyName: family?.name })
+  } catch (error) {
+    console.error('Create invitation error:', error)
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 })
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const code = searchParams.get('code')
+    if (!code) return NextResponse.json({ error: 'رمز الدعوة مطلوب' }, { status: 400 })
+
+    const invitation = await prisma.familyInvitation.findFirst({
+      where: { code: code.toUpperCase(), status: 'pending', expiresAt: { gt: new Date() } },
+      include: { family: { select: { id: true, name: true } }, inviter: { select: { name: true, avatar: true } } }
+    })
+
+    if (!invitation) return NextResponse.json({ valid: false, error: 'رمز الدعوة غير صالح أو منتهي' }, { status: 404 })
+
+    return NextResponse.json({
+      valid: true,
+      invitation: { code: invitation.code, email: invitation.email, role: invitation.role, familyName: invitation.family.name, inviterName: invitation.inviter.name, inviterAvatar: invitation.inviter.avatar }
+    })
+  } catch (error) {
+    console.error('Verify invitation error:', error)
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 })
+  }
+}
+
+
+================================================================================
+📁 18. src/app/api/scan-receipt/route.ts
+================================================================================
+import ZAI from 'z-ai-web-dev-sdk';
+import { NextRequest, NextResponse } from 'next/server';
+
+async function getCurrentUser(request: NextRequest) {
+  try {
+    const { prisma } = await import('@/lib/prisma');
+    const sessionToken = request.cookies.get('session-token')?.value
+    if (!sessionToken) return null
+    const session = await prisma.session.findFirst({
+      where: { id: sessionToken, expiresAt: { gt: new Date() } },
+      include: { user: true }
+    })
+    return session?.user || null
+  } catch { return null }
+}
+
+const CATEGORIES = [
+  { id: 'dairy', name: 'ألبان', keywords: ['حليب', 'لبن', 'جبن', 'زبادي', 'روب', 'قشطة', 'زبدة'] },
+  { id: 'meat', name: 'لحوم', keywords: ['لحم', 'لحمة', 'بقر', 'خروف', 'كباب', 'كفتة', 'مفروم'] },
+  { id: 'poultry', name: 'دواجن', keywords: ['دجاج', 'فراخ', 'فرخ', 'فروج', 'ديك', 'رومي'] },
+  { id: 'seafood', name: 'أسماك', keywords: ['سمك', 'ربيان', 'روبيان', 'جمبري', 'تونة', 'سالمون'] },
+  { id: 'bakery', name: 'مخبوزات', keywords: ['خبز', 'صمون', 'كرواسون', 'توست', 'فينو'] },
+  { id: 'vegetables', name: 'خضار', keywords: ['طماطم', 'بصل', 'ثوم', 'بطاطس', 'جزر', 'خيار'] },
+  { id: 'fruits', name: 'فواكه', keywords: ['تفاح', 'موز', 'برتقال', 'ليمون', 'عنب', 'رمان'] },
+  { id: 'frozen', name: 'مجمدات', keywords: ['مجمد', 'مثلج', 'آيس كريم', 'فريزر', 'سمبوسة'] },
+  { id: 'legumes', name: 'بقوليات', keywords: ['فول', 'عدس', 'حمص', 'فاصوليا', 'لوبيا'] },
+  { id: 'spices', name: 'توابل وبهارات', keywords: ['توابل', 'بهارات', 'ملح', 'سكر', 'فلفل'] },
+  { id: 'sweets', name: 'حلويات', keywords: ['حلويات', 'شوكولاتة', 'كيك', 'بسكويت', 'حلاوة'] },
+  { id: 'drinks', name: 'مشروبات', keywords: ['مشروب', 'عصير', 'ماء', 'بيبسي', 'شاي', 'قهوة'] },
+  { id: 'snacks', name: 'سناكس', keywords: ['سناكس', 'شيبس', 'مكسرات', 'فشار'] },
+  { id: 'cleaning', name: 'منظفات', keywords: ['منظف', 'صابون', 'مسحوق', 'كلور', 'مطهر'] },
+  { id: 'personal', name: 'عناية شخصية', keywords: ['شامبو', 'كريم', 'لوشن', 'معجون', 'حفاضات'] },
+  { id: 'kitchen', name: 'مطبخ وأدوات', keywords: ['قدر', 'مقلاة', 'طقم', 'صحن', 'كوب'] },
+  { id: 'other', name: 'أخرى', keywords: [] }
+];
+
+function classifyProduct(productName: string): string {
+  const nameLower = productName.toLowerCase();
+  for (const cat of CATEGORIES) {
+    if (cat.keywords.some(keyword => nameLower.includes(keyword.toLowerCase()))) return cat.id;
+  }
+  return 'other';
+}
+
+function extractJSON(text: string): any {
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace === -1 || lastBrace === -1 || firstBrace > lastBrace) return null;
+  try { return JSON.parse(text.substring(firstBrace, lastBrace + 1)); } catch { return null; }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request);
+    if (!user) return NextResponse.json({ success: false, error: 'يجب تسجيل الدخول أولاً' }, { status: 401 });
+
+    const body = await request.json();
+    const imageBase64 = body.image || body.imageBase64;
+    if (!imageBase64) return NextResponse.json({ success: false, error: 'الصورة مطلوبة' }, { status: 400 });
+
+    let imageUrl: string = imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
+
+    const zai = await ZAI.create();
+    const completion = await zai.chat.completions.createVision({
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: `أنت خبير في قراءة وتحليل فواتير السوبرماركت. مهمتك:\n1. اقرأ الفاتورة بعناية\n2. استخرج كل منتج مذكور\n3. لكل منتج حدد: الاسم، السعر، الكمية\n\nأرجع النتيجة JSON فقط:\n{"store": "اسم المتجر", "date": "التاريخ", "items": [{"name": "اسم المنتج", "price": 15.50, "quantity": 1}], "total": 150.00}\n\nحلل هذه الفاتورة:` },
+          { type: 'image_url', image_url: { url: imageUrl } }
+        ]
+      }],
+      thinking: { type: 'disabled' }
+    });
+
+    const responseText = completion.choices[0]?.message?.content || '';
+    const receiptData = extractJSON(responseText);
+    
+    if (!receiptData || !receiptData.items || !Array.isArray(receiptData.items) || receiptData.items.length === 0) {
+      return NextResponse.json({ success: false, error: 'لم نتمكن من قراءة الفاتورة' }, { status: 400 });
+    }
+
+    const itemsWithCategory = receiptData.items
+      .filter((item: any) => item && item.name && String(item.name).trim() !== '')
+      .map((item: any) => ({
+        name: String(item.name || '').trim(),
+        price: Number(item.price) || 0,
+        quantity: Number(item.quantity) || 1,
+        category: classifyProduct(String(item.name || ''))
+      }));
+
+    return NextResponse.json({ success: true, store: receiptData.store || '', date: receiptData.date || '', items: itemsWithCategory, total: Number(receiptData.total) || 0 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: 'حدث خطأ في تحليل الفاتورة: ' + (error.message || 'خطأ غير معروف') }, { status: 500 });
+  }
+}
+
+
+================================================================================
+📁 19. public/manifest.json
+================================================================================
+{
+  "name": "مقاضي - قائمة المشتريات الذكية",
+  "short_name": "مقاضي",
+  "description": "تطبيق ذكي لتنظيم قائمة المشتريات وتتبع الأسعار وإدارة ميزانية العائلة",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1222",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/icons/icon-72x72.png", "sizes": "72x72", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-128x128.png", "sizes": "128x128", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-144x144.png", "sizes": "144x144", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-152x152.png", "sizes": "152x152", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-384x384.png", "sizes": "384x384", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable any" }
+  ],
+  "categories": ["shopping", "finance", "lifestyle"],
+  "shortcuts": [{ "name": "إضافة منتج", "short_name": "إضافة", "url": "/?action=add", "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }] }]
+}
+
+
+================================================================================
+📁 20. public/sw.js
+================================================================================
+const CACHE_NAME = 'home-items-v1';
+const STATIC_CACHE = 'static-v1';
+const DYNAMIC_CACHE = 'dynamic-v1';
+
+const STATIC_FILES = ['/', '/manifest.json', '/offline.html'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_FILES)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => Promise.all(
+      cacheNames.filter((name) => name !== STATIC_CACHE && name !== DYNAMIC_CACHE).map((name) => caches.delete(name))
+    )).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+  if (url.protocol === 'chrome-extension:' || request.method !== 'GET') return;
+  event.respondWith(url.pathname.startsWith('/api/') ? networkFirst(request) : cacheFirst(request));
+});
+
+async function networkFirst(request) {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) { const cache = await caches.open(DYNAMIC_CACHE); cache.put(request, networkResponse.clone()); }
+    return networkResponse;
+  } catch {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) return cachedResponse;
+    return new Response(JSON.stringify({ error: 'أنت غير متصل بالإنترنت', offline: true }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+  }
+}
+
+async function cacheFirst(request) {
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) { fetch(request).then((res) => { if (res.ok) caches.open(STATIC_CACHE).then((c) => c.put(request, res)); }).catch(() => {}); return cachedResponse; }
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) { const cache = await caches.open(DYNAMIC_CACHE); cache.put(request, networkResponse.clone()); }
+    return networkResponse;
+  } catch {
+    if (request.mode === 'navigate') return caches.match('/offline.html');
+    return new Response('Offline', { status: 503 });
+  }
+}
+
+self.addEventListener('push', (event) => {
+  const options = { body: event.data?.text() || 'تحديث جديد!', icon: '/icon-192x192.png', badge: '/icon-72x72.png', vibrate: [100, 50, 100] };
+  event.waitUntil(self.registration.showNotification('مقاضي', options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  if (event.action === 'open' || !event.action) event.waitUntil(clients.openWindow('/'));
+});
+
+
+================================================================================
+📁 21. src/app/page.tsx (الملف الرئيسي - كبير جداً)
+================================================================================
+ملاحظة: هذا الملف كبير جداً (أكثر من 3000 سطر)
+يرجى نسخه من المسار: /home/z/my-project/src/app/page.tsx
+
+
+================================================================================
+                        تعليمات التثبيت والتشغيل
+================================================================================
+
+1. أنشئ مجلد جديد للمشروع
+2. انسخ جميع الملفات إلى مساراتها الصحيحة
+3. افتح Terminal في مجلد المشروع
+4. شغل الأوامر التالية:
+
+   npm install
+   npx prisma generate
+   npx prisma db push
+   npm run dev
+
+5. افتح المتصفح على: http://localhost:3000
+
+ملاحظة: ملف page.tsx كبير جداً، ستجده منفصلاً في ملف آخر.
+
+================================================================================
