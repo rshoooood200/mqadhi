@@ -86,7 +86,9 @@ export function sanitizeInput(input: string, maxLength: number = 1000): string {
     .replace(/[\x00-\x1F\x7F]/g, '') // إزالة control characters
 }
 
-// Rate Limiting بسيط (in-memory)
+// Rate Limiting بسيط (in-memory) - يعمل فقط في نفس العملية
+// ملاحظة: في Vercel، كل request قد تكون في عملية مختلفة
+// لذا هذا Rate Limiting أساسي وليس مضموناً 100%
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
 export function checkRateLimit(
@@ -110,12 +112,13 @@ export function checkRateLimit(
   return { allowed: true, remaining: maxAttempts - record.count, resetTime: record.resetTime }
 }
 
-// تنظيف الـ rate limit store كل 10 دقائق
-setInterval(() => {
+// تنظيف الـ rate limit store - يتم استدعاؤها يدوياً
+// ملاحظة: تم إزالة setInterval لأنها تسبب مشاكل في serverless
+export function cleanupRateLimitStore(): void {
   const now = Date.now()
   for (const [key, record] of rateLimitStore.entries()) {
     if (now > record.resetTime) {
       rateLimitStore.delete(key)
     }
   }
-}, 600000)
+}

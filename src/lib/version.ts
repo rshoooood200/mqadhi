@@ -4,13 +4,24 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.5.3'
+export const APP_VERSION = '1.5.4'
 
 // تاريخ الإصدار
 export const RELEASE_DATE = '2026-04-04'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.5.4',
+    date: '2026-04-07',
+    changes: [
+      '🔧 إصلاح Rate Limiting للعمل مع Vercel',
+      '📤 استخدام الإصدار الفعلي في التصدير',
+      '📦 إضافة حدود لحجم ملف الاستيراد',
+      '⚡ تحسين معالجة الأخطاء عند تحميل البيانات',
+      '🧹 تنظيف الكود من setInterval في serverless',
+    ]
+  },
   {
     version: '1.5.3',
     date: '2026-04-04',

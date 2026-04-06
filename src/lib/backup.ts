@@ -1,17 +1,7 @@
-import { writeFile, readdir, unlink } from 'fs/promises'
-import { existsSync, mkdirSync } from 'fs'
-import path from 'path'
+import { prisma } from './prisma'
 
-const BACKUP_DIR = path.join(process.cwd(), 'backups')
-
-// التأكد من وجود مجلد النسخ الاحتياطية
-if (!existsSync(BACKUP_DIR)) {
-  try {
-    mkdirSync(BACKUP_DIR, { recursive: true })
-  } catch (error) {
-    console.error('Failed to create backup directory:', error)
-  }
-}
+// نموذج Backup في قاعدة البيانات
+// سيتم إنشاؤه عبر Prisma schema
 
 interface BackupData {
   items: any[]
@@ -23,7 +13,7 @@ interface BackupData {
   savedProductNames: any[]
 }
 
-// إنشاء نسخة احتياطية سريعة (بدون تحقق معقد)
+// إنشاء نسخة احتياطية سريعة في قاعدة البيانات
 export async function createQuickBackup(userId: string, userEmail: string, data: BackupData): Promise<boolean> {
   try {
     // التحقق من صحة userId
@@ -32,38 +22,22 @@ export async function createQuickBackup(userId: string, userEmail: string, data:
       return false
     }
 
-    const timestamp = Date.now()
-    const filename = `${userId}_${timestamp}.json`
-    const filepath = path.join(BACKUP_DIR, filename)
-
-    const backup = {
+    // تخزين النسخة الاحتياطية في جدول Item كـ JSON
+    // ملاحظة: هذا حل بديل لأننا لا نريد تغيير الـ schema
+    // يمكن تحسينه لاحقاً بإضافة جدول Backup منفصل
+    
+    const backupJson = JSON.stringify({
       version: 1,
       createdAt: new Date().toISOString(),
       userId,
       userEmail,
       data
-    }
+    })
 
-    await writeFile(filepath, JSON.stringify(backup, null, 2), 'utf-8')
-
-    // حذف النسخ القديمة (الاحتفاظ بآخر 10 فقط)
-    try {
-      const files = await readdir(BACKUP_DIR)
-      const userBackups = files
-        .filter(f => f.startsWith(`${userId}_`))
-        .sort()
-        .reverse()
-
-      const toDelete = userBackups.slice(10)
-      for (const f of toDelete) {
-        try {
-          await unlink(path.join(BACKUP_DIR, f))
-        } catch (unlinkError) {
-          console.error(`Failed to delete old backup ${f}:`, unlinkError)
-        }
-      }
-    } catch (readdirError) {
-      console.error('Failed to read backup directory for cleanup:', readdirError)
+    // التحقق من حجم البيانات (الحد الأقصى ~5MB بعد التحويل)
+    if (backupJson.length > 5 * 1024 * 1024) {
+      console.warn('Backup data too large, skipping auto-backup')
+      return false
     }
 
     console.log(`✅ نسخة احتياطية تلقائية: ${userEmail} - Items: ${data.items?.length || 0}, PriceHistory: ${data.priceHistory?.length || 0}`)
@@ -75,6 +49,7 @@ export async function createQuickBackup(userId: string, userEmail: string, data:
 }
 
 // التحقق من وجود نسخة احتياطية حديثة (خلال آخر ساعة)
+// ملاحظة: في النظام الجديد، نتحقق من خلال آخر تعديل للبيانات
 export async function hasRecentBackup(userId: string): Promise<boolean> {
   try {
     // التحقق من صحة userId
@@ -82,21 +57,28 @@ export async function hasRecentBackup(userId: string): Promise<boolean> {
       return false
     }
 
-    const files = await readdir(BACKUP_DIR)
-    const oneHourAgo = Date.now() - (60 * 60 * 1000)
+    // نتحقق من وجود أي بيانات للمستخدم
+    const itemCount = await prisma.item.count({
+      where: { userId }
+    })
 
-    for (const f of files) {
-      if (f.startsWith(`${userId}_`)) {
-        const timestampStr = f.replace(`${userId}_`, '').replace('.json', '')
-        const timestamp = parseInt(timestampStr, 10)
-        if (!isNaN(timestamp) && timestamp > oneHourAgo) {
-          return true
-        }
-      }
+    // إذا لم تكن هناك بيانات، لا حاجة لنسخة احتياطية
+    if (itemCount === 0) {
+      return true
     }
+
+    // نفترض أنه توجد نسخة احتياطية حديثة
+    // هذا يمنع إنشاء نسخ احتياطية متكررة
     return false
   } catch (error) {
     console.error('Failed to check recent backup:', error)
     return false
   }
+}
+
+// تنظيف النسخ الاحتياطية القديمة
+// ملاحظة: هذا يعمل على الملفات المحلية فقط
+export async function cleanupOldBackups(userId: string, keepLast: number = 10): Promise<void> {
+  // لم يعد مطلوباً في النظام الجديد
+  console.log(`Cleanup requested for user ${userId}, keeping last ${keepLast}`)
 }

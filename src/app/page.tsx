@@ -1086,9 +1086,16 @@ export default function Home() {
         console.log('⚠️ الجلسة منتهية')
         setIsLoggedIn(false)
         setCurrentUser(null)
+        setIsDataLoaded(true) // السماح بالعمل حتى لو انتهت الجلسة
+      } else {
+        // خطأ آخر - لا نزال نسمح بالعمل
+        console.error('خطأ في تحميل البيانات:', response.status)
+        setIsDataLoaded(true)
       }
     } catch (error) {
       console.error('Load error:', error)
+      // في حالة خطأ الشبكة، نسمح بالعمل وسيتم إعادة المحاولة لاحقاً
+      setIsDataLoaded(true)
     }
   }
 

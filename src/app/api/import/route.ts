@@ -26,11 +26,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
     }
 
+    // التحقق من حجم الطلب (الحد الأقصى 10MB)
+    const contentLength = request.headers.get('content-length')
+    if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: 'حجم الملف كبير جداً (الحد الأقصى 10MB)' }, { status: 413 })
+    }
+
     const data = await request.json()
 
     // التحقق من صحة الملف
     if (!data.exportType || data.exportType !== 'mqadhi-backup') {
       return NextResponse.json({ error: 'ملف غير صالح - ليس نسخة احتياطية من تطبيق مقاضي' }, { status: 400 })
+    }
+
+    // التحقق من حدود البيانات
+    const MAX_ITEMS = 5000
+    const MAX_FAMILY_MEMBERS = 50
+    const MAX_STORES = 100
+    const MAX_PRICE_HISTORY = 10000
+
+    if (data.items?.length > MAX_ITEMS) {
+      return NextResponse.json({ error: `عدد الأغراض يتجاوز الحد المسموح (${MAX_ITEMS})` }, { status: 400 })
+    }
+    if (data.familyMembers?.length > MAX_FAMILY_MEMBERS) {
+      return NextResponse.json({ error: `عدد أفراد العائلة يتجاوز الحد المسموح (${MAX_FAMILY_MEMBERS})` }, { status: 400 })
+    }
+    if (data.customStores?.length > MAX_STORES) {
+      return NextResponse.json({ error: `عدد المتاجر يتجاوز الحد المسموح (${MAX_STORES})` }, { status: 400 })
     }
 
     console.log('📦 بدء استيراد البيانات للمستخدم:', user.email)

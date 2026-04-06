@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { APP_VERSION } from '@/lib/version'
 
 // الحصول على المستخدم الحالي
 async function getCurrentUser(request: NextRequest) {
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
     // تنسيق البيانات للتصدير
     const exportData = {
       // معلومات التطبيق
-      appVersion: '1.4.0',
+      appVersion: APP_VERSION,
       exportDate: new Date().toISOString(),
       exportType: 'mqadhi-backup',
       
