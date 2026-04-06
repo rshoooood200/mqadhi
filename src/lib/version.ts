@@ -4,13 +4,22 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.5.4'
+export const APP_VERSION = '1.5.5'
 
 // تاريخ الإصدار
 export const RELEASE_DATE = '2026-04-04'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.5.5',
+    date: '2026-04-07',
+    changes: [
+      '📥 إصلاح مشكلة الاستيراد - البيانات لا تظهر بعد الاستيراد',
+      '🔄 استخدام Transaction لضمان سلامة البيانات',
+      '👨‍👩‍👧‍👦 حفظ ربط أفراد العائلة مع الدور',
+    ]
+  },
   {
     version: '1.5.4',
     date: '2026-04-07',
