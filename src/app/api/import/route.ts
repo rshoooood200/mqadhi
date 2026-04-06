@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
     const MAX_ITEMS = 5000
     const MAX_FAMILY_MEMBERS = 50
     const MAX_STORES = 100
-    const MAX_PRICE_HISTORY = 10000
 
     if (data.items?.length > MAX_ITEMS) {
       return NextResponse.json({ error: `عدد الأغراض يتجاوز الحد المسموح (${MAX_ITEMS})` }, { status: 400 })
@@ -67,28 +66,37 @@ export async function POST(request: NextRequest) {
     // خريطة لتحويل IDs أفراد العائلة القدامى إلى الجدد
     const familyMemberIdMap: Record<string, string> = {}
 
-    // استخدام transaction لضمان سلامة البيانات
-    await prisma.$transaction(async (tx) => {
-      // حذف البيانات القديمة أولاً
-      await Promise.all([
-        tx.price.deleteMany({ where: { item: { userId: user.id } } }),
-        tx.item.deleteMany({ where: { userId: user.id } }),
-        tx.familyMember.deleteMany({ where: { userId: user.id } }),
-        tx.customStore.deleteMany({ where: { userId: user.id } }),
-        tx.priceHistoryRecord.deleteMany({ where: { userId: user.id } }),
-        tx.customCategory.deleteMany({ where: { userId: user.id } }),
-        tx.savedProductName.deleteMany({ where: { userId: user.id } }),
-      ])
+    // ⚠️ لا نستخدم transaction لأن PgBouncer لا يدعمها
+    // نستخدم عمليات متسلسلة بدلاً من ذلك
 
-      console.log('🗑️ تم حذف البيانات القديمة')
+    // 1. حذف البيانات القديمة
+    console.log('🗑️ حذف البيانات القديمة...')
+    
+    // حذف الأسعار أولاً (لأنها مرتبطة بالأغراض)
+    await prisma.price.deleteMany({ 
+      where: { item: { userId: user.id } } 
+    }).catch(() => {})
+    
+    // حذف بقية البيانات
+    await Promise.all([
+      prisma.item.deleteMany({ where: { userId: user.id } }).catch(() => {}),
+      prisma.familyMember.deleteMany({ where: { userId: user.id } }).catch(() => {}),
+      prisma.customStore.deleteMany({ where: { userId: user.id } }).catch(() => {}),
+      prisma.priceHistoryRecord.deleteMany({ where: { userId: user.id } }).catch(() => {}),
+      prisma.customCategory.deleteMany({ where: { userId: user.id } }).catch(() => {}),
+      prisma.savedProductName.deleteMany({ where: { userId: user.id } }).catch(() => {}),
+    ])
 
-      // استيراد أفراد العائلة أولاً (لحفظ الـ IDs)
-      if (data.familyMembers && Array.isArray(data.familyMembers) && data.familyMembers.length > 0) {
-        console.log(`👥 استيراد ${data.familyMembers.length} فرد من العائلة...`)
+    console.log('✅ تم حذف البيانات القديمة')
 
-        for (const m of data.familyMembers) {
+    // 2. استيراد أفراد العائلة أولاً (لحفظ الـ IDs)
+    if (data.familyMembers && Array.isArray(data.familyMembers) && data.familyMembers.length > 0) {
+      console.log(`👥 استيراد ${data.familyMembers.length} فرد من العائلة...`)
+
+      for (const m of data.familyMembers) {
+        try {
           const oldId = m.id
-          const newMember = await tx.familyMember.create({
+          const newMember = await prisma.familyMember.create({
             data: {
               name: m.name || 'بدون اسم',
               avatar: m.avatar || '👤',
@@ -100,98 +108,110 @@ export async function POST(request: NextRequest) {
             familyMemberIdMap[oldId] = newMember.id
           }
           importedFamilyMembers++
+        } catch (err) {
+          console.error('خطأ في استيراد فرد العائلة:', m.name, err)
         }
       }
+    }
 
-      // استيراد الأغراض
-      if (data.items && Array.isArray(data.items) && data.items.length > 0) {
-        console.log(`📦 استيراد ${data.items.length} غرض...`)
+    // 3. استيراد الأغراض
+    if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+      console.log(`📦 استيراد ${data.items.length} غرض...`)
 
-        for (const item of data.items) {
-          try {
-            await tx.item.create({
-              data: {
-                name: item.name || 'منتج بدون اسم',
-                category: item.category || 'other',
-                quantity: Number(item.quantity) || 1,
-                notes: item.notes || '',
-                isPurchased: Boolean(item.isPurchased),
-                image: item.image || null,
-                order: Number(item.order) || 0,
-                userId: user.id,
-                prices: {
-                  create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
-                    store: p.store || 'غير محدد',
-                    price: Number(p.price) || 0,
-                    date: p.date ? new Date(p.date) : new Date()
-                  }))
-                }
+      for (const item of data.items) {
+        try {
+          await prisma.item.create({
+            data: {
+              name: item.name || 'منتج بدون اسم',
+              category: item.category || 'other',
+              quantity: Number(item.quantity) || 1,
+              notes: item.notes || '',
+              isPurchased: Boolean(item.isPurchased),
+              image: item.image || null,
+              order: Number(item.order) || 0,
+              userId: user.id,
+              prices: {
+                create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
+                  store: p.store || 'غير محدد',
+                  price: Number(p.price) || 0,
+                  date: p.date ? new Date(p.date) : new Date()
+                }))
               }
-            })
-            importedItems++
-          } catch (itemError) {
-            console.error('خطأ في استيراد غرض:', item.name, itemError)
-          }
+            }
+          })
+          importedItems++
+        } catch (itemError) {
+          console.error('خطأ في استيراد غرض:', item.name, itemError)
         }
       }
+    }
 
-      // استيراد المتاجر المخصصة
-      if (data.customStores && Array.isArray(data.customStores) && data.customStores.length > 0) {
-        console.log(`🏪 استيراد ${data.customStores.length} متجر...`)
+    // 4. استيراد المتاجر المخصصة
+    if (data.customStores && Array.isArray(data.customStores) && data.customStores.length > 0) {
+      console.log(`🏪 استيراد ${data.customStores.length} متجر...`)
 
-        const storesToCreate = data.customStores
-          .filter((name): name is string => typeof name === 'string' && !!name.trim())
-          .map((name: string) => ({
-            name: name.trim(),
-            userId: user.id
-          }))
+      const storesToCreate = data.customStores
+        .filter((name): name is string => typeof name === 'string' && !!name.trim())
+        .map((name: string) => ({
+          name: name.trim(),
+          userId: user.id
+        }))
 
-        if (storesToCreate.length > 0) {
-          await tx.customStore.createMany({ data: storesToCreate })
+      if (storesToCreate.length > 0) {
+        try {
+          await prisma.customStore.createMany({ data: storesToCreate })
           importedStores = storesToCreate.length
+        } catch (err) {
+          console.error('خطأ في استيراد المتاجر:', err)
         }
       }
+    }
 
-      // استيراد سجل الأسعار
-      if (data.priceHistory && typeof data.priceHistory === 'object') {
-        const priceKeys = Object.keys(data.priceHistory)
-        console.log(`💰 استيراد أسعار ${priceKeys.length} منتج...`)
+    // 5. استيراد سجل الأسعار
+    if (data.priceHistory && typeof data.priceHistory === 'object') {
+      const priceKeys = Object.keys(data.priceHistory)
+      console.log(`💰 استيراد أسعار ${priceKeys.length} منتج...`)
 
-        const records: { productName: string; store: string; price: number; date: Date; userId: string }[] = []
+      const records: { productName: string; store: string; price: number; date: Date; userId: string }[] = []
 
-        for (const [productName, prices] of Object.entries(data.priceHistory)) {
-          if (Array.isArray(prices)) {
-            for (const p of prices) {
-              if (p && typeof p === 'object') {
-                records.push({
-                  productName: productName || 'غير محدد',
-                  store: (p as Record<string, unknown>).store as string || 'غير محدد',
-                  price: Number((p as Record<string, unknown>).price) || 0,
-                  date: (p as Record<string, unknown>).date ? new Date((p as Record<string, unknown>).date as string) : new Date(),
-                  userId: user.id
-                })
-              }
+      for (const [productName, prices] of Object.entries(data.priceHistory)) {
+        if (Array.isArray(prices)) {
+          for (const p of prices) {
+            if (p && typeof p === 'object') {
+              records.push({
+                productName: productName || 'غير محدد',
+                store: (p as Record<string, unknown>).store as string || 'غير محدد',
+                price: Number((p as Record<string, unknown>).price) || 0,
+                date: (p as Record<string, unknown>).date ? new Date((p as Record<string, unknown>).date as string) : new Date(),
+                userId: user.id
+              })
             }
           }
         }
-
-        if (records.length > 0) {
-          await tx.priceHistoryRecord.createMany({ data: records })
-          importedPriceHistory = records.length
-        }
       }
 
-      // استيراد الميزانية مع تحديث shoppingTurn
-      if (data.budget) {
-        console.log('💵 استيراد الميزانية...')
+      if (records.length > 0) {
+        try {
+          await prisma.priceHistoryRecord.createMany({ data: records })
+          importedPriceHistory = records.length
+        } catch (err) {
+          console.error('خطأ في استيراد الأسعار:', err)
+        }
+      }
+    }
 
+    // 6. استيراد الميزانية مع تحديث shoppingTurn
+    if (data.budget) {
+      console.log('💵 استيراد الميزانية...')
+
+      try {
         // تحويل shoppingTurn القديم إلى الجديد
         let newShoppingTurn = data.budget.shoppingTurn || null
         if (newShoppingTurn && familyMemberIdMap[newShoppingTurn]) {
           newShoppingTurn = familyMemberIdMap[newShoppingTurn]
         }
 
-        await tx.budget.upsert({
+        await prisma.budget.upsert({
           where: { userId: user.id },
           update: {
             monthlyBudget: Number(data.budget.monthlyBudget) || 0,
@@ -207,13 +227,17 @@ export async function POST(request: NextRequest) {
             userId: user.id
           }
         })
+      } catch (err) {
+        console.error('خطأ في استيراد الميزانية:', err)
       }
+    }
 
-      // استيراد التصنيفات المخصصة
-      if (data.customCategories && Array.isArray(data.customCategories) && data.customCategories.length > 0) {
-        console.log(`📁 استيراد ${data.customCategories.length} تصنيف...`)
+    // 7. استيراد التصنيفات المخصصة
+    if (data.customCategories && Array.isArray(data.customCategories) && data.customCategories.length > 0) {
+      console.log(`📁 استيراد ${data.customCategories.length} تصنيف...`)
 
-        await tx.customCategory.createMany({
+      try {
+        await prisma.customCategory.createMany({
           data: data.customCategories.map((cat: { name: string; icon?: string; color?: string; keywords?: string[] }) => ({
             name: cat.name || 'تصنيف بدون اسم',
             icon: cat.icon || '📦',
@@ -223,29 +247,31 @@ export async function POST(request: NextRequest) {
           }))
         })
         importedCategories = data.customCategories.length
+      } catch (err) {
+        console.error('خطأ في استيراد التصنيفات:', err)
       }
+    }
 
-      // استيراد أسماء المنتجات المحفوظة
-      if (data.savedProductNames && Array.isArray(data.savedProductNames) && data.savedProductNames.length > 0) {
-        console.log(`📝 استيراد ${data.savedProductNames.length} اسم منتج...`)
+    // 8. استيراد أسماء المنتجات المحفوظة
+    if (data.savedProductNames && Array.isArray(data.savedProductNames) && data.savedProductNames.length > 0) {
+      console.log(`📝 استيراد ${data.savedProductNames.length} اسم منتج...`)
 
-        for (const name of data.savedProductNames) {
-          if (name && typeof name === 'string' && name.trim()) {
-            try {
-              await tx.savedProductName.create({
-                data: {
-                  name: name.trim(),
-                  userId: user.id
-                }
-              })
-              importedProductNames++
-            } catch {
-              // تجاهل التكرار
-            }
+      for (const name of data.savedProductNames) {
+        if (name && typeof name === 'string' && name.trim()) {
+          try {
+            await prisma.savedProductName.create({
+              data: {
+                name: name.trim(),
+                userId: user.id
+              }
+            })
+            importedProductNames++
+          } catch {
+            // تجاهل التكرار
           }
         }
       }
-    })
+    }
 
     console.log('✅ تم استيراد البيانات بنجاح')
 
