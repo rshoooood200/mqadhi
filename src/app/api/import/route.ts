@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `عدد المتاجر يتجاوز الحد المسموح (${MAX_STORES})` }, { status: 400 })
     }
 
-    console.log('📦 بدء استيراد البيانات للمستخدم:', user.email)
+    console.log('📦 بدء استيراد البيانات للمستخدم:', user.email, 'ID:', user.id)
 
     let importedItems = 0
     let importedFamilyMembers = 0
@@ -274,6 +274,14 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ تم استيراد البيانات بنجاح')
+    console.log('📊 الإحصائيات:', {
+      items: importedItems,
+      familyMembers: importedFamilyMembers,
+      stores: importedStores,
+      priceHistory: importedPriceHistory,
+      categories: importedCategories,
+      productNames: importedProductNames
+    })
 
     return NextResponse.json({
       success: true,

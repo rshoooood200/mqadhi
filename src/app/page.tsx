@@ -1242,12 +1242,16 @@ export default function Home() {
       }
       
       const result = await response.json()
-      showAlertMessage(`✅ تم استيراد البيانات بنجاح! (${result.stats.items} غرض، ${result.stats.priceHistory} سعر)`)
+      console.log('✅ نتيجة الاستيراد:', result)
       
-      // إعادة تحميل الصفحة لتحديث البيانات
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
+      // تحميل البيانات مباشرة من السيرفر بعد الاستيراد
+      console.log('📥 تحميل البيانات بعد الاستيراد...')
+      await loadUserData()
+      
+      // إغلاق نافذة النسخ الاحتياطي
+      setShowBackupModal(false)
+      
+      showAlertMessage(`✅ تم استيراد البيانات بنجاح! (${result.stats.items} غرض، ${result.stats.priceHistory} سعر)`)
       
     } catch (error) {
       console.error('Import error:', error)

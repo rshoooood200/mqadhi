@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
     }
 
+    console.log('📥 تحميل البيانات للمستخدم:', user.email, 'ID:', user.id)
+
     // جلب جميع بيانات المستخدم
     const [items, familyMembers, customStores, priceHistory, budget, customCategories, savedProductNames] = await Promise.all([
       prisma.item.findMany({
@@ -99,6 +101,15 @@ export async function GET(request: NextRequest) {
       color: c.color,
       keywords: c.keywords ? c.keywords.split(',').map(k => k.trim()).filter(k => k) : []
     }))
+
+    console.log('📤 إرجاع البيانات:', {
+      items: formattedItems.length,
+      familyMembers: formattedFamilyMembers.length,
+      customStores: customStores.length,
+      priceHistoryRecords: priceHistory.length,
+      customCategories: formattedCustomCategories.length,
+      savedProductNames: savedProductNames.length
+    })
 
     return NextResponse.json({
       items: formattedItems,
