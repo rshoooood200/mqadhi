@@ -55,6 +55,15 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('📦 بدء استيراد البيانات للمستخدم:', user.email, 'ID:', user.id)
+    console.log('📊 محتوى الملف:', {
+      items: data.items?.length || 0,
+      familyMembers: data.familyMembers?.length || 0,
+      customStores: data.customStores?.length || 0,
+      priceHistoryProducts: data.priceHistory ? Object.keys(data.priceHistory).length : 0,
+      hasBudget: !!data.budget,
+      customCategories: data.customCategories?.length || 0,
+      savedProductNames: data.savedProductNames?.length || 0
+    })
 
     let importedItems = 0
     let importedFamilyMembers = 0

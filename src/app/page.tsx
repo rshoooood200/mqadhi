@@ -1199,6 +1199,9 @@ export default function Home() {
     try {
       setIsBackupLoading(true)
       
+      // 🛡️ منع الحفظ التلقائي أثناء الاستيراد
+      setIsDataLoaded(false)
+      
       // قراءة الملف
       const text = await file.text()
       let data
@@ -1225,6 +1228,7 @@ export default function Home() {
       // تأكيد قبل الاستيراد
       if (!confirm(infoMessage + '\n\n⚠️ تحذير: سيتم استبدال جميع البيانات الحالية. هل أنت متأكد؟')) {
         setIsBackupLoading(false)
+        setIsDataLoaded(true)
         return
       }
       
@@ -1256,6 +1260,7 @@ export default function Home() {
     } catch (error) {
       console.error('Import error:', error)
       showAlertMessage(`❌ ${error instanceof Error ? error.message : 'حدث خطأ أثناء الاستيراد'}`)
+      setIsDataLoaded(true) // إعادة تفعيل الحفظ في حالة الخطأ
     }
     setIsBackupLoading(false)
   }

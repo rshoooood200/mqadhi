@@ -4,13 +4,22 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.5.7'
+export const APP_VERSION = '1.5.8'
 
 // تاريخ الإصدار
 export const RELEASE_DATE = '2026-04-04'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.5.8',
+    date: '2026-04-07',
+    changes: [
+      '🛡️ منع الحفظ التلقائي أثناء الاستيراد',
+      '📊 تحسين logging لتتبع المشاكل',
+      '🐛 إصلاح race condition بين الاستيراد والحفظ',
+    ]
+  },
   {
     version: '1.5.7',
     date: '2026-04-07',
