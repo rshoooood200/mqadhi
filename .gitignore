@@ -46,6 +46,9 @@ dev.log
 test
 prompt
 
+# منع تضارب app/ مع src/app/
+/app/
+
 server.log
 # Skills directory
 /skills/
