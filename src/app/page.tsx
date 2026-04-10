@@ -5242,7 +5242,12 @@ export default function Home() {
             <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex gap-3">
               {!updateInfo.forceUpdate && (
                 <button
-                  onClick={() => setShowUpdateModal(false)}
+                  onClick={() => {
+                    // تسجيل الإصدار الجديد حتى لا تظهر الرسالة مرة أخرى
+                    localStorage.setItem('appVersion', latestVersion)
+                    setCurrentVersion(latestVersion)
+                    setShowUpdateModal(false)
+                  }}
                   className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                 >
                   لاحقاً

@@ -1,7 +1,11 @@
+import { NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 import fs from 'fs';
 
-async function main() {
+export const maxDuration = 300;
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
   try {
     const zai = await ZAI.create();
     
@@ -19,11 +23,8 @@ async function main() {
     }
     
     if (frames.length === 0) {
-      console.log('No frames found');
-      return;
+      return NextResponse.json({ error: 'No frames found' }, { status: 400 });
     }
-    
-    console.log('Found', frames.length, 'frames');
     
     const prompt = `Analyze these screenshots from a mobile app video recording step by step.
 
@@ -37,7 +38,7 @@ The app appears to be a budget/shopping list app in Arabic. Please analyze:
 
 Provide a detailed analysis in Arabic of what's happening in each screenshot and the overall flow.`;
 
-    const content = [{ type: 'text', text: prompt }];
+    const content: any[] = [{ type: 'text', text: prompt }];
     frames.forEach(url => {
       content.push({ type: 'image_url', image_url: { url } });
     });
@@ -47,10 +48,15 @@ Provide a detailed analysis in Arabic of what's happening in each screenshot and
       thinking: { type: 'enabled' }
     });
 
-    console.log('Analysis:', response.choices[0]?.message?.content);
-  } catch (error) {
+    return NextResponse.json({
+      success: true,
+      analysis: response.choices[0]?.message?.content
+    });
+  } catch (error: any) {
     console.error('Error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error.message
+    }, { status: 500 });
   }
 }
-
-main();
