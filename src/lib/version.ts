@@ -4,15 +4,23 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.6.9'
-
+export const APP_VERSION = '1.6.15'
 
 
 // تاريخ الإصدار
-export const RELEASE_DATE = '2026-04-10'
+export const RELEASE_DATE = '2026-04-11'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.6.15',
+    date: '2026-04-11',
+    changes: [
+      '🔧 إصلاح اتصال قاعدة البيانات',
+      '🔐 تحديث كلمة مرور Supabase',
+      '✅ تحسين استقرار التطبيق',
+    ]
+  },
   {
     version: '1.6.9',
     date: '2026-04-11',
