@@ -14,6 +14,15 @@ export const RELEASE_DATE = '2026-04-10'
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
   {
+    version: '1.6.9',
+    date: '2026-04-11',
+    changes: [
+      '🔧 إصلاح مشكلة قاعدة البيانات - إزالة directUrl',
+      '🗑️ حذف مجلد app/ المكرر الذي سبب مشاكل 404',
+      '✅ تحسين استقرار الاتصال بـ Supabase',
+    ]
+  },
+  {
     version: '1.6.7',
     date: '2026-04-10',
     changes: [
