@@ -971,26 +971,49 @@ export default function Home() {
     e.stopPropagation()
     try {
       const productNameLower = productName.toLowerCase().trim()
-      const newPriceHistory = { ...priceHistory }
+      
+      // 📌 تحديث priceHistory و ref معاً
+      const newPriceHistory = { ...priceHistoryRef.current }
       delete newPriceHistory[productNameLower]
+      priceHistoryRef.current = newPriceHistory
       setPriceHistory(newPriceHistory)
-      setItems(prev => prev.filter(item => item.name.toLowerCase().trim() !== productNameLower))
-      setSavedProductNames(prev => {
-        const filtered = prev.filter(name => name.toLowerCase() !== productNameLower)
-        localStorage.setItem('savedProductNames', JSON.stringify(filtered))
-        return filtered
-      })
+      
+      // 📌 تحديث items و ref معاً
+      const newItems = itemsRef.current.filter(item => item.name.toLowerCase().trim() !== productNameLower)
+      itemsRef.current = newItems
+      setItems(newItems)
+      
+      // 📌 تحديث savedProductNames و ref معاً
+      const filteredNames = savedProductNamesRef.current.filter(name => name.toLowerCase() !== productNameLower)
+      savedProductNamesRef.current = filteredNames
+      setSavedProductNames(filteredNames)
+      localStorage.setItem('savedProductNames', JSON.stringify(filteredNames))
+      
       setShowSuggestions(false)
       showAlertMessage(`تم حذف "${productName}" من الاقتراحات`)
-      if (isLoggedIn) {
+      
+      // 🚨 حفظ فوري على السيرفر
+      if (isLoggedIn && isDataLoaded) {
         try {
-          await fetch('/api/suggestions/delete', {
-            method: 'DELETE',
+          await fetch('/api/sync', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ productName })
+            body: JSON.stringify({
+              items: newItems,
+              familyMembers: familyMembersRef.current,
+              customStores: customStoresRef.current,
+              priceHistory: newPriceHistory,
+              budget: {
+                monthlyBudget: monthlyBudgetRef.current,
+                spentAmount: spentAmountRef.current,
+                startDate: budgetStartDateRef.current,
+                shoppingTurn: shoppingTurnRef.current
+              },
+              customCategories: customCategoriesRef.current,
+              savedProductNames: filteredNames
+            })
           })
         } catch (serverError) {
-          // الحذف المحلي نجح، لكن فشل المزامنة مع السيرفر
           console.error('فشل حذف الاقتراح من السيرفر:', serverError)
         }
       }
@@ -1382,23 +1405,49 @@ export default function Home() {
       const response = await fetch('/api/sync')
       if (response.ok) {
         const data = await response.json()
-        setItems(data.items || [])
-        setFamilyMembers(data.familyMembers || [])
-        setCustomStores(data.customStores || [])
-        setPriceHistory(data.priceHistory || {})
-        setCustomCategories(data.customCategories || [])
-        if (data.savedProductNames && data.savedProductNames.length > 0) {
-          setSavedProductNames(data.savedProductNames)
-        }
+        
+        // 📌 تحديث states و refs معاً
+        const loadedItems = data.items || []
+        const loadedFamilyMembers = data.familyMembers || []
+        const loadedCustomStores = data.customStores || []
+        const loadedPriceHistory = data.priceHistory || {}
+        const loadedCustomCategories = data.customCategories || []
+        const loadedSavedProductNames = data.savedProductNames || []
+        
+        itemsRef.current = loadedItems
+        familyMembersRef.current = loadedFamilyMembers
+        customStoresRef.current = loadedCustomStores
+        priceHistoryRef.current = loadedPriceHistory
+        customCategoriesRef.current = loadedCustomCategories
+        savedProductNamesRef.current = loadedSavedProductNames
+        
+        setItems(loadedItems)
+        setFamilyMembers(loadedFamilyMembers)
+        setCustomStores(loadedCustomStores)
+        setPriceHistory(loadedPriceHistory)
+        setCustomCategories(loadedCustomCategories)
+        setSavedProductNames(loadedSavedProductNames)
+        
         if (data.budget) {
-          setMonthlyBudget(data.budget.monthlyBudget || 0)
-          setSpentAmount(data.budget.spentAmount || 0)
-          setBudgetStartDate(data.budget.startDate || '')
-          setShoppingTurn(data.budget.shoppingTurn || '')
+          const budget = {
+            monthlyBudget: data.budget.monthlyBudget || 0,
+            spentAmount: data.budget.spentAmount || 0,
+            startDate: data.budget.startDate || '',
+            shoppingTurn: data.budget.shoppingTurn || ''
+          }
+          monthlyBudgetRef.current = budget.monthlyBudget
+          spentAmountRef.current = budget.spentAmount
+          budgetStartDateRef.current = budget.startDate
+          shoppingTurnRef.current = budget.shoppingTurn
+          
+          setMonthlyBudget(budget.monthlyBudget)
+          setSpentAmount(budget.spentAmount)
+          setBudgetStartDate(budget.startDate)
+          setShoppingTurn(budget.shoppingTurn)
         }
         setLastSyncTime(new Date())
         setIsDataLoaded(true) // تأكيد تحميل البيانات
-        console.log('✅ تمت المزامنة اليدوية بنجاح')
+        console.log('✅ تمت المزامنة اليدوية بنجاح -', loadedItems.length, 'عناصر')
       }
     } catch (error) {
       console.error('Manual sync error:', error)
@@ -2173,12 +2222,14 @@ export default function Home() {
   }
 
   // إضافة سعر جديد
-  const handleAddPrice = () => {
+  const handleAddPrice = async () => {
     let storeName = newPriceStore
     if (showCustomStoreInput && customStoreName.trim()) {
       storeName = customStoreName.trim()
       if (!allStores.includes(storeName)) {
-        setCustomStores(prev => [...prev, storeName])
+        const newCustomStores = [...customStoresRef.current, storeName]
+        customStoresRef.current = newCustomStores
+        setCustomStores(newCustomStores)
       }
     }
     
@@ -2188,7 +2239,7 @@ export default function Home() {
     const productKey = selectedItemForPrice.name.toLowerCase().trim()
     
     // التحقق من وجود السعر مسبقاً في priceHistory
-    const existingInHistory = priceHistory[productKey] || []
+    const existingInHistory = priceHistoryRef.current[productKey] || []
     const duplicateInHistory = existingInHistory.some(p => 
       p.store === storeName && p.price === priceValue
     )
@@ -2211,10 +2262,10 @@ export default function Home() {
       date: new Date().toISOString()
     }
     
-    const updatedItems = items.map(item => {
+    // 📌 تحديث items و ref معاً
+    const updatedItems = itemsRef.current.map(item => {
       if (item.id === selectedItemForPrice.id) {
         const currentPrices = item.prices || []
-        // إضافة فقط إذا لم يكن مكرراً
         if (!currentPrices.some(p => p.store === storeName && p.price === priceValue)) {
           return { ...item, prices: [...currentPrices, newPrice] }
         }
@@ -2222,19 +2273,19 @@ export default function Home() {
       }
       return item
     })
+    itemsRef.current = updatedItems
     setItems(updatedItems)
     
-    setPriceHistory(prev => {
-      const existingPrices = prev[productKey] || []
-      // إضافة فقط إذا لم يكن مكرراً
-      if (!existingPrices.some(p => p.store === storeName && p.price === priceValue)) {
-        return {
-          ...prev,
-          [productKey]: [...existingPrices, newPrice]
-        }
+    // 📌 تحديث priceHistory و ref معاً
+    const existingPrices = priceHistoryRef.current[productKey] || []
+    if (!existingPrices.some(p => p.store === storeName && p.price === priceValue)) {
+      const newPriceHistory = {
+        ...priceHistoryRef.current,
+        [productKey]: [...existingPrices, newPrice]
       }
-      return prev
-    })
+      priceHistoryRef.current = newPriceHistory
+      setPriceHistory(newPriceHistory)
+    }
     
     setNewPriceStore('')
     setNewPriceAmount('')
@@ -2242,33 +2293,89 @@ export default function Home() {
     setCustomStoreName('')
     setIsPriceModalOpen(false)
     setSelectedItemForPrice(null)
+    
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: updatedItems,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+      } catch (error) {
+        console.error('Add price save error:', error)
+      }
+    }
   }
 
   // حذف سعر
-  const deletePrice = (itemId: string, priceIndex: number) => {
-    const item = items.find(i => i.id === itemId)
+  const deletePrice = async (itemId: string, priceIndex: number) => {
+    const item = itemsRef.current.find(i => i.id === itemId)
     const priceToDelete = item?.prices?.[priceIndex]
     
-    setItems(items.map(it => {
+    // 📌 تحديث items و ref معاً
+    const updatedItems = itemsRef.current.map(it => {
       if (it.id === itemId) {
         const currentPrices = it.prices || []
         return { ...it, prices: currentPrices.filter((_, i) => i !== priceIndex) }
       }
       return it
-    }))
+    })
+    itemsRef.current = updatedItems
+    setItems(updatedItems)
     
     if (item && priceToDelete) {
       const productKey = item.name.toLowerCase().trim()
-      setPriceHistory(prev => {
-        const existingPrices = prev[productKey] || []
-        const updatedPrices = existingPrices.filter(p =>
-          !(p.store === priceToDelete.store && p.price === priceToDelete.price)
-        )
-        return {
-          ...prev,
-          [productKey]: updatedPrices
-        }
-      })
+      // 📌 تحديث priceHistory و ref معاً
+      const existingPrices = priceHistoryRef.current[productKey] || []
+      const updatedPrices = existingPrices.filter(p =>
+        !(p.store === priceToDelete.store && p.price === priceToDelete.price)
+      )
+      const newPriceHistory = {
+        ...priceHistoryRef.current,
+        [productKey]: updatedPrices
+      }
+      priceHistoryRef.current = newPriceHistory
+      setPriceHistory(newPriceHistory)
+    }
+    
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: updatedItems,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+      } catch (error) {
+        console.error('Delete price save error:', error)
+      }
     }
   }
 
@@ -2491,57 +2598,97 @@ export default function Home() {
   }
 
   // حذف تصنيف مخصص
-  const deleteCustomCategory = (categoryId: string) => {
+  const deleteCustomCategory = async (categoryId: string) => {
     // 🛡️ حماية: لا تحفظ إذا لم يتم تحميل البيانات
     if (!isDataLoaded || !isLoggedIn) {
       showAlertMessage('يرجى الانتظار حتى يتم تحميل البيانات')
       return
     }
 
-    const updatedCategories = customCategories.filter(c => c.id !== categoryId)
+    // 📌 تحديث customCategories و ref معاً
+    const updatedCategories = customCategoriesRef.current.filter(c => c.id !== categoryId)
+    customCategoriesRef.current = updatedCategories
     setCustomCategories(updatedCategories)
 
     // تحويل الأغراض في هذا التصنيف إلى 'other'
-    const updatedItems = items.map(item =>
+    const updatedItems = itemsRef.current.map(item =>
       item.category === categoryId ? { ...item, category: 'other' } : item
     )
+    itemsRef.current = updatedItems
     setItems(updatedItems)
 
-    // حفظ التغييرات على السيرفر
-    fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: updatedItems,
-        familyMembers,
-        customStores,
-        priceHistory,
-        budget: { monthlyBudget, spentAmount, startDate: budgetStartDate, shoppingTurn },
-        customCategories: updatedCategories,
-        savedProductNames
+    // 🚨 حفظ فوري على السيرفر
+    try {
+      await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: updatedItems,
+          familyMembers: familyMembersRef.current,
+          customStores: customStoresRef.current,
+          priceHistory: priceHistoryRef.current,
+          budget: {
+            monthlyBudget: monthlyBudgetRef.current,
+            spentAmount: spentAmountRef.current,
+            startDate: budgetStartDateRef.current,
+            shoppingTurn: shoppingTurnRef.current
+          },
+          customCategories: updatedCategories,
+          savedProductNames: savedProductNamesRef.current
+        })
       })
-    }).then(() => {
       console.log('✅ تم حذف التصنيف')
-    }).catch(err => {
+    } catch (err) {
       console.error('خطأ في حذف التصنيف:', err)
       showAlertMessage('حدث خطأ في حذف التصنيف')
-    })
+    }
   }
 
   // حذف فرد من العائلة
-  const deleteFamilyMember = (memberId: string) => {
-    if (familyMembers.length <= 1) {
+  const deleteFamilyMember = async (memberId: string) => {
+    if (familyMembersRef.current.length <= 1) {
       alert('لا يمكن حذف العضو الأخير')
       return
     }
     
-    const updatedMembers = familyMembers.filter(m => m.id !== memberId)
+    // 📌 تحديث familyMembers و ref معاً
+    const updatedMembers = familyMembersRef.current.filter(m => m.id !== memberId)
+    familyMembersRef.current = updatedMembers
     setFamilyMembers(updatedMembers)
     
-    if (shoppingTurn === memberId) {
+    let newShoppingTurn = shoppingTurnRef.current
+    if (shoppingTurnRef.current === memberId) {
       const nextMember = updatedMembers[0]
-      setShoppingTurn(nextMember.id)
+      newShoppingTurn = nextMember.id
+      shoppingTurnRef.current = newShoppingTurn
+      setShoppingTurn(newShoppingTurn)
       setCurrentUser(prev => ({ ...prev!, name: nextMember.name, avatar: nextMember.avatar }))
+    }
+    
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: itemsRef.current,
+            familyMembers: updatedMembers,
+            customStores: customStoresRef.current,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: newShoppingTurn
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+      } catch (error) {
+        console.error('Delete family member save error:', error)
+      }
     }
   }
 
@@ -2558,9 +2705,9 @@ export default function Home() {
     }
   }
 
-  const handleDragEnd = () => {
+  const handleDragEnd = async () => {
     if (draggedItem && dragOverItem) {
-      const newItems = [...items]
+      const newItems = [...itemsRef.current]
       const draggedIndex = newItems.findIndex(i => i.id === draggedItem.id)
       const overIndex = newItems.findIndex(i => i.id === dragOverItem.id)
       
@@ -2568,7 +2715,35 @@ export default function Home() {
       const [removed] = newItems.splice(draggedIndex, 1)
       newItems.splice(overIndex, 0, removed)
       
+      // 📌 تحديث state و ref معاً
+      itemsRef.current = newItems
       setItems(newItems)
+      
+      // 🚨 حفظ فوري على السيرفر
+      if (isLoggedIn && isDataLoaded) {
+        try {
+          await fetch('/api/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              items: newItems,
+              familyMembers: familyMembersRef.current,
+              customStores: customStoresRef.current,
+              priceHistory: priceHistoryRef.current,
+              budget: {
+                monthlyBudget: monthlyBudgetRef.current,
+                spentAmount: spentAmountRef.current,
+                startDate: budgetStartDateRef.current,
+                shoppingTurn: shoppingTurnRef.current
+              },
+              customCategories: customCategoriesRef.current,
+              savedProductNames: savedProductNamesRef.current
+            })
+          })
+        } catch (error) {
+          console.error('Drag end save error:', error)
+        }
+      }
     }
     setDraggedItem(null)
     setDragOverItem(null)
