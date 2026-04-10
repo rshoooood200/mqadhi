@@ -4,11 +4,15 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// Prisma with PgBouncer - prepared statements disabled via DATABASE_URL parameter
-// Make sure DATABASE_URL ends with ?pgbouncer=true
+// Prisma with SSL for Supabase
 const prismaClientSingleton = () => {
   return new PrismaClient({
     log: ['error'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
   })
 }
 
