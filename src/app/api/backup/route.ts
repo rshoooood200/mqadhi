@@ -1,15 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { writeFile, readdir, unlink } from 'fs/promises'
-import { existsSync, mkdirSync } from 'fs'
-import path from 'path'
-
-const BACKUP_DIR = path.join(process.cwd(), 'backups')
-
-// التأكد من وجود مجلد النسخ الاحتياطية
-if (!existsSync(BACKUP_DIR)) {
-  mkdirSync(BACKUP_DIR, { recursive: true })
-}
 
 // الحصول على المستخدم الحالي
 async function getCurrentUser(request: NextRequest) {
@@ -36,30 +26,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
     }
 
-    // قراءة ملفات النسخ الاحتياطية للمستخدم
-    const files = await readdir(BACKUP_DIR)
-    const userBackups = files
-      .filter(f => f.startsWith(`${user.id}_`))
-      .map(f => {
-        const timestamp = f.replace(`${user.id}_`, '').replace('.json', '')
-        return {
-          filename: f,
-          timestamp,
-          date: new Date(parseInt(timestamp)).toLocaleString('ar-SA')
-        }
-      })
-      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    // جلب النسخ الاحتياطية من قاعدة البيانات
+    const backups = await prisma.backup.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        createdAt: true
+      }
+    })
 
-    // الاحتفاظ بآخر 10 نسخ فقط
-    const toDelete = userBackups.slice(10)
-    for (const backup of toDelete) {
-      try {
-        await unlink(path.join(BACKUP_DIR, backup.filename))
-      } catch {}
+    const formattedBackups = backups.map(backup => ({
+      id: backup.id,
+      timestamp: backup.createdAt.getTime().toString(),
+      date: backup.createdAt.toLocaleString('ar-SA')
+    }))
+
+    // حذف النسخ القديمة (أكثر من 10)
+    if (backups.length === 10) {
+      const oldBackups = await prisma.backup.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        skip: 10,
+        select: { id: true }
+      })
+      
+      if (oldBackups.length > 0) {
+        await prisma.backup.deleteMany({
+          where: {
+            id: { in: oldBackups.map(b => b.id) }
+          }
+        })
+      }
     }
 
     return NextResponse.json({
-      backups: userBackups.slice(0, 10)
+      backups: formattedBackups
     })
   } catch (error) {
     console.error('Backup list error:', error)
@@ -102,7 +105,7 @@ export async function POST(request: NextRequest) {
     ])
 
     // إنشاء كائن النسخة الاحتياطية
-    const backup = {
+    const backupData = {
       version: 1,
       createdAt: new Date().toISOString(),
       userId: user.id,
@@ -118,19 +121,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // حفظ النسخة الاحتياطية
-    const timestamp = Date.now()
-    const filename = `${user.id}_${timestamp}.json`
-    const filepath = path.join(BACKUP_DIR, filename)
+    // حفظ النسخة الاحتياطية في قاعدة البيانات
+    const backup = await prisma.backup.create({
+      data: {
+        userId: user.id,
+        data: backupData
+      }
+    })
 
-    await writeFile(filepath, JSON.stringify(backup, null, 2), 'utf-8')
-
-    console.log(`✅ تم إنشاء نسخة احتياطية للمستخدم ${user.email}: ${filename}`)
+    console.log(`✅ تم إنشاء نسخة احتياطية للمستخدم ${user.email}: ${backup.id}`)
 
     return NextResponse.json({
       success: true,
-      filename,
-      timestamp,
+      id: backup.id,
+      timestamp: backup.createdAt.getTime().toString(),
       stats: {
         items: items.length,
         familyMembers: familyMembers.length,
@@ -140,6 +144,44 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Backup create error:', error)
+    return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 })
+  }
+}
+
+// DELETE - حذف نسخة احتياطية
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await getCurrentUser(request)
+    if (!user) {
+      return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const backupId = searchParams.get('id')
+
+    if (!backupId) {
+      return NextResponse.json({ error: 'معرف النسخة مطلوب' }, { status: 400 })
+    }
+
+    // التحقق من أن النسخة تخص المستخدم
+    const backup = await prisma.backup.findFirst({
+      where: {
+        id: backupId,
+        userId: user.id
+      }
+    })
+
+    if (!backup) {
+      return NextResponse.json({ error: 'النسخة غير موجودة' }, { status: 404 })
+    }
+
+    await prisma.backup.delete({
+      where: { id: backupId }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Backup delete error:', error)
     return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 })
   }
 }

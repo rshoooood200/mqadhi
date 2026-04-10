@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { readFile } from 'fs/promises'
-import { existsSync } from 'fs'
-import path from 'path'
-
-const BACKUP_DIR = path.join(process.cwd(), 'backups')
 
 // الحصول على المستخدم الحالي
 async function getCurrentUser(request: NextRequest) {
@@ -31,51 +26,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
     }
 
-    const { filename } = await request.json()
+    const { backupId } = await request.json()
 
-    if (!filename) {
-      return NextResponse.json({ error: 'اسم الملف مطلوب' }, { status: 400 })
+    if (!backupId) {
+      return NextResponse.json({ error: 'معرف النسخة الاحتياطية مطلوب' }, { status: 400 })
     }
 
-    // 🛡️ حماية من Path Traversal
-    // التحقق من أن اسم الملف آمن (لا يحتوي على مسارات نسبية أو مطلقة)
-    const normalizedFilename = path.basename(filename) // إزالة أي مسارات
+    // جلب النسخة الاحتياطية من قاعدة البيانات
+    const backup = await prisma.backup.findFirst({
+      where: {
+        id: backupId,
+        userId: user.id
+      }
+    })
 
-    // التحقق من أن الملف يخص المستخدم
-    if (!normalizedFilename.startsWith(`${user.id}_`)) {
-      return NextResponse.json({ error: 'غير مصرح بهذا الملف' }, { status: 403 })
+    if (!backup) {
+      return NextResponse.json({ error: 'النسخة الاحتياطية غير موجودة' }, { status: 404 })
     }
-
-    // التحقق من امتداد الملف
-    if (!normalizedFilename.endsWith('.json')) {
-      return NextResponse.json({ error: 'نوع ملف غير صالح' }, { status: 400 })
-    }
-
-    // بناء المسار بشكل آمن
-    const filepath = path.join(BACKUP_DIR, normalizedFilename)
-
-    // 🛡️ تأكد أن الملف داخل المجلد المسموح فقط
-    const resolvedPath = path.resolve(filepath)
-    const resolvedBackupDir = path.resolve(BACKUP_DIR)
-    if (!resolvedPath.startsWith(resolvedBackupDir)) {
-      return NextResponse.json({ error: 'غير مصرح' }, { status: 403 })
-    }
-
-    // التحقق من وجود الملف
-    if (!existsSync(filepath)) {
-      return NextResponse.json({ error: 'الملف غير موجود' }, { status: 404 })
-    }
-
-    // قراءة النسخة الاحتياطية
-    const content = await readFile(filepath, 'utf-8')
-    const backup = JSON.parse(content)
 
     // التحقق من صحة البيانات
-    if (!backup.data) {
-      return NextResponse.json({ error: 'ملف تالف' }, { status: 400 })
+    const backupData = backup.data as any
+    if (!backupData.data) {
+      return NextResponse.json({ error: 'بيانات تالفة' }, { status: 400 })
     }
 
-    const { items, familyMembers, customStores, priceHistory, budget, customCategories, savedProductNames } = backup.data
+    const { items, familyMembers, customStores, priceHistory, budget, customCategories, savedProductNames } = backupData.data
 
     // حذف البيانات الحالية
     await Promise.all([
@@ -99,6 +74,7 @@ export async function POST(request: NextRequest) {
             notes: item.notes || '',
             isPurchased: item.isPurchased || false,
             image: item.image || null,
+            order: item.order || 0,
             userId: user.id,
             prices: {
               create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
@@ -198,12 +174,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`✅ تم استعادة النسخة الاحتياطية للمستخدم ${user.email}: ${filename}`)
+    console.log(`✅ تم استعادة النسخة الاحتياطية للمستخدم ${user.email}: ${backupId}`)
 
     return NextResponse.json({
       success: true,
       message: 'تم استعادة البيانات بنجاح',
-      restoredFrom: backup.createdAt,
+      restoredFrom: backupData.createdAt,
       stats: {
         items: items?.length || 0,
         familyMembers: familyMembers?.length || 0,

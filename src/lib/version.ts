@@ -4,13 +4,22 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.5.8'
+export const APP_VERSION = '1.5.9'
 
 // تاريخ الإصدار
-export const RELEASE_DATE = '2026-04-04'
+export const RELEASE_DATE = '2026-04-10'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.5.9',
+    date: '2026-04-10',
+    changes: [
+      '☁️ إصلاح النسخ الاحتياطي السحابي - يعمل الآن على Vercel',
+      '💾 تخزين النسخ الاحتياطية في قاعدة البيانات بدلاً من الملفات',
+      '🔄 تحسين استعادة النسخ الاحتياطية',
+    ]
+  },
   {
     version: '1.5.8',
     date: '2026-04-07',

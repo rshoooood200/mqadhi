@@ -402,7 +402,7 @@ export default function Home() {
   const [isDataLoaded, setIsDataLoaded] = useState(false) // منع الحفظ قبل تحميل البيانات
 
   // النسخ الاحتياطية
-  const [backups, setBackups] = useState<{filename: string; timestamp: string; date: string}[]>([])
+  const [backups, setBackups] = useState<{id: string; timestamp: string; date: string}[]>([])
   const [isBackupLoading, setIsBackupLoading] = useState(false)
   const [showBackupModal, setShowBackupModal] = useState(false)
 
@@ -1133,7 +1133,7 @@ export default function Home() {
   }
 
   // استعادة نسخة احتياطية
-  const restoreBackup = async (filename: string) => {
+  const restoreBackup = async (backupId: string) => {
     if (!confirm('⚠️ تحذير: سيتم استبدال جميع البيانات الحالية ببيانات النسخة الاحتياطية. هل أنت متأكد؟')) {
       return
     }
@@ -1143,15 +1143,15 @@ export default function Home() {
       const response = await fetch('/api/backup/restore', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename })
+        body: JSON.stringify({ backupId })
       })
 
       if (response.ok) {
         const data = await response.json()
         showAlertMessage(`✅ تم استعادة البيانات بنجاح`)
         setShowBackupModal(false)
-        // إعادة تحميل الصفحة لتحديث البيانات
-        window.location.reload()
+        // إعادة تحميل البيانات
+        await loadUserData()
       } else {
         const error = await response.json()
         showAlertMessage(`❌ فشل الاستعادة: ${error.error}`)
@@ -4789,7 +4789,7 @@ export default function Home() {
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {backups.map((backup) => (
                     <div
-                      key={backup.filename}
+                      key={backup.id}
                       className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-xl"
                     >
                       <div>
@@ -4798,7 +4798,7 @@ export default function Home() {
                         </p>
                       </div>
                       <button
-                        onClick={() => restoreBackup(backup.filename)}
+                        onClick={() => restoreBackup(backup.id)}
                         disabled={isBackupLoading}
                         className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm rounded-lg transition-colors disabled:opacity-50"
                         suppressHydrationWarning
