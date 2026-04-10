@@ -136,8 +136,11 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser(request)
     if (!user) {
+      console.log('⚠️ POST /api/sync: المستخدم غير مسجل الدخول')
       return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
     }
+
+    console.log('📥 POST /api/sync للمستخدم:', user.email, 'ID:', user.id)
 
     // 📌 دعم sendBeacon الذي يرسل البيانات كـ text/plain
     const contentType = request.headers.get('content-type') || ''
@@ -151,11 +154,22 @@ export async function POST(request: NextRequest) {
       try {
         data = JSON.parse(text)
       } catch {
+        console.log('⚠️ خطأ في تنسيق البيانات')
         return NextResponse.json({ error: 'خطأ في تنسيق البيانات' }, { status: 400 })
       }
     }
 
     const { items, familyMembers, customStores, priceHistory, budget, customCategories, savedProductNames } = data
+
+    console.log('📊 البيانات المستلمة:', {
+      items: items?.length || 0,
+      familyMembers: familyMembers?.length || 0,
+      customStores: customStores?.length || 0,
+      priceHistoryKeys: priceHistory ? Object.keys(priceHistory).length : 0,
+      budget: budget ? { monthlyBudget: budget.monthlyBudget, spentAmount: budget.spentAmount, shoppingTurn: budget.shoppingTurn } : null,
+      customCategories: customCategories?.length || 0,
+      savedProductNames: savedProductNames?.length || 0
+    })
 
     // التحقق مما إذا كانت items محددة (حتى لو فارغة)
     const itemsSpecified = items !== undefined
@@ -201,46 +215,61 @@ export async function POST(request: NextRequest) {
     // 📌 إذا تم تحديد items (حتى لو فارغة)، نحذف القديمة ونحفظ الجديدة
     if (itemsSpecified) {
       // حذف العناصر القديمة
+      console.log('🗑️ حذف العناصر القديمة...')
       await prisma.item.deleteMany({ where: { userId: user.id } })
-      
+
       // حفظ العناصر الجديدة (إذا وجدت)
       if (hasItems) {
+        console.log('💾 حفظ', items.length, 'عناصر جديدة...')
         for (const item of items) {
-          await prisma.item.create({
-            data: {
-              id: item.id,
-              name: item.name,
-              category: item.category,
-              quantity: item.quantity || 1,
-              notes: item.notes || '',
-              isPurchased: item.isPurchased || false,
-              image: item.image || null,
-              userId: user.id,
-              prices: {
-                create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
-                  store: p.store,
-                  price: p.price,
-                  date: new Date(p.date)
-                }))
+          try {
+            await prisma.item.create({
+              data: {
+                // 🔧 لا نمرر ID - ندع Prisma يولد cuid صالح
+                name: item.name,
+                category: item.category,
+                quantity: item.quantity || 1,
+                notes: item.notes || '',
+                isPurchased: item.isPurchased || false,
+                image: item.image || null,
+                userId: user.id,
+                prices: {
+                  create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
+                    store: p.store,
+                    price: p.price,
+                    date: new Date(p.date)
+                  }))
+                }
               }
-            }
-          })
+            })
+          } catch (itemError) {
+            console.error('❌ خطأ في حفظ العنصر:', item.name, itemError)
+          }
         }
+        console.log('✅ تم حفظ جميع العناصر')
+      } else {
+        console.log('📝 لا توجد عناصر للحفظ')
       }
     }
 
     // حفظ/تحديث أفراد العائلة
     if (familyMembers !== undefined) {
+      console.log('👥 حفظ', familyMembers?.length || 0, 'أفراد العائلة')
       await prisma.familyMember.deleteMany({ where: { userId: user.id } })
       if (hasFamilyMembers) {
-        await prisma.familyMember.createMany({
-          data: familyMembers.map((m: { id: string; name: string; avatar: string }) => ({
-            id: m.id,
-            name: m.name,
-            avatar: m.avatar || '👤',
-            userId: user.id
-          }))
-        })
+        try {
+          await prisma.familyMember.createMany({
+            data: familyMembers.map((m: { id: string; name: string; avatar: string }) => ({
+              id: m.id,
+              name: m.name,
+              avatar: m.avatar || '👤',
+              userId: user.id
+            }))
+          })
+          console.log('✅ تم حفظ أفراد العائلة')
+        } catch (fmError) {
+          console.error('❌ خطأ في حفظ أفراد العائلة:', fmError)
+        }
       }
     }
 
@@ -304,8 +333,8 @@ export async function POST(request: NextRequest) {
       await prisma.customCategory.deleteMany({ where: { userId: user.id } })
       if (hasCustomCategories) {
         await prisma.customCategory.createMany({
-          data: customCategories.map((cat: { id: string; name: string; icon: string; color: string; keywords: string[] }) => ({
-            id: cat.id,
+          data: customCategories.map((cat: { name: string; icon: string; color: string; keywords: string[] }) => ({
+            // 🔧 لا نمرر ID - ندع Prisma يولد cuid صالح
             name: cat.name,
             icon: cat.icon || '📦',
             color: cat.color || 'gray',
@@ -337,6 +366,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('✅ تم حفظ جميع البيانات بنجاح للمستخدم:', user.email)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Sync post error:', error)

@@ -1814,6 +1814,8 @@ export default function Home() {
     setIsModalOpen(false)
 
     // 🚨 حفظ فوري على السيرفر لمنع فقدان البيانات
+    console.log('🔍 حالة الحفظ:', { isLoggedIn, isDataLoaded, itemsCount: updatedItems.length })
+
     if (isLoggedIn && isDataLoaded) {
       try {
         console.log('💾 حفظ فوري بعد الإضافة/التعديل...', updatedItems.length, 'منتجات')
@@ -1839,13 +1841,29 @@ export default function Home() {
 
         if (response.ok) {
           console.log('✅ تم حفظ الإضافة/التعديل على السيرفر')
+          showAlertMessage('✅ تم حفظ المنتج بنجاح')
         } else {
-          console.error('⚠️ فشل حفظ الإضافة/التعديل على السيرفر')
-          showAlertMessage('⚠️ فشل الحفظ - تحقق من اتصالك بالإنترنت')
+          const errorData = await response.json().catch(() => ({}))
+          console.error('⚠️ فشل حفظ الإضافة/التعديل على السيرفر:', response.status, errorData)
+
+          if (response.status === 401) {
+            showAlertMessage('⚠️ انتهت صلاحية الجلسة - يرجى تسجيل الدخول مجدداً')
+            setIsLoggedIn(false)
+            setCurrentUser(null)
+          } else {
+            showAlertMessage(`⚠️ فشل الحفظ: ${errorData.error || 'خطأ غير معروف'}`)
+          }
         }
       } catch (error) {
         console.error('Save after add/edit error:', error)
         showAlertMessage('⚠️ فشل الحفظ - تحقق من اتصالك بالإنترنت')
+      }
+    } else {
+      console.log('⚠️ لم يتم الحفظ - isLoggedIn:', isLoggedIn, 'isDataLoaded:', isDataLoaded)
+      if (!isLoggedIn) {
+        showAlertMessage('⚠️ يجب تسجيل الدخول للحفظ')
+      } else if (!isDataLoaded) {
+        showAlertMessage('⚠️ جاري تحميل البيانات - يرجى الانتظار')
       }
     }
   }

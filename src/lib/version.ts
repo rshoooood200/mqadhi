@@ -4,7 +4,7 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.6.5'
+export const APP_VERSION = '1.6.6'
 
 
 
@@ -13,6 +13,17 @@ export const RELEASE_DATE = '2026-04-10'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.6.6',
+    date: '2026-04-10',
+    changes: [
+      '🔧 إصلاح IDs: استخدام Prisma cuid بدلاً من IDs من client',
+      '📊 إضافة logging مفصل لتتبع المشاكل',
+      '💬 عرض رسائل خطأ واضحة للمستخدم',
+      '🔍 التحقق من حالة الجلسة عند الحفظ',
+      '🐛 إصلاح مشكلة تضارب IDs في قاعدة البيانات',
+    ]
+  },
   {
     version: '1.6.5',
     date: '2026-04-10',
