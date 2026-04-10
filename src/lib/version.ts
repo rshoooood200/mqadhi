@@ -4,7 +4,7 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.6.1'
+export const APP_VERSION = '1.6.2'
 
 
 
@@ -13,6 +13,16 @@ export const RELEASE_DATE = '2026-04-10'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.6.2',
+    date: '2026-04-10',
+    changes: [
+      '🔧 إصلاح حرج: حفظ أفراد العائلة عند الإضافة',
+      '🔧 إصلاح: حفظ دور التسوق عند التبديل',
+      '🔧 إصلاح: تحديث refs عند تسجيل حساب جديد/خروج',
+      '💡 السبب: createNewFamilyMember لم تكن تحفظ على السيرفر',
+    ]
+  },
   {
     version: '1.6.1',
     date: '2026-04-10',

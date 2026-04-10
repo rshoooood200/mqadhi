@@ -1580,16 +1580,26 @@ export default function Home() {
         setCurrentUser(data.user)
         setIsLoggedIn(true)
         
-        // تصفير البيانات للمستخدم الجديد
+        // تصفير البيانات للمستخدم الجديد (state و ref معاً)
+        itemsRef.current = []
         setItems([])
+        familyMembersRef.current = []
         setFamilyMembers([])
+        customStoresRef.current = []
         setCustomStores([])
+        priceHistoryRef.current = {}
         setPriceHistory({})
+        monthlyBudgetRef.current = 0
         setMonthlyBudget(0)
+        spentAmountRef.current = 0
         setSpentAmount(0)
+        budgetStartDateRef.current = ''
         setBudgetStartDate('')
+        shoppingTurnRef.current = ''
         setShoppingTurn('')
+        customCategoriesRef.current = []
         setCustomCategories([])
+        savedProductNamesRef.current = []
         
         console.log('✅ تم إنشاء الحساب بنجاح:', data.user.name)
       } else {
@@ -1662,16 +1672,27 @@ export default function Home() {
       await saveUserData()
       await fetch('/api/auth/logout', { method: 'POST' })
 
-      // مسح البيانات المحلية
+      // مسح البيانات المحلية (state و ref معاً)
       setCurrentUser(null)
+      itemsRef.current = []
       setItems([])
+      familyMembersRef.current = []
       setFamilyMembers([])
+      customStoresRef.current = []
       setCustomStores([])
+      priceHistoryRef.current = {}
       setPriceHistory({})
+      monthlyBudgetRef.current = 0
       setMonthlyBudget(0)
+      spentAmountRef.current = 0
       setSpentAmount(0)
+      budgetStartDateRef.current = ''
       setBudgetStartDate('')
+      shoppingTurnRef.current = ''
       setShoppingTurn('')
+      customCategoriesRef.current = []
+      setCustomCategories([])
+      savedProductNamesRef.current = []
       setIsLoggedIn(false)
       setIsDataLoaded(false)
     } catch (error) {
@@ -2498,33 +2519,110 @@ export default function Home() {
   }
 
   // إنشاء فرد عائلة جديد
-  const createNewFamilyMember = (name: string) => {
+  const createNewFamilyMember = async (name: string) => {
     const newMember: UserProfile = {
       id: generateId(),
       name: name,
       email: '',
       avatar: '👤',
     }
-    setFamilyMembers(prev => [...prev, newMember])
-    setShoppingTurn(prev => prev || newMember.id)
+    
+    // 📌 تحديث state و ref معاً
+    const updatedMembers = [...familyMembersRef.current, newMember]
+    familyMembersRef.current = updatedMembers
+    setFamilyMembers(updatedMembers)
+    
+    // تحديث shoppingTurn إذا كان الأول
+    const newShoppingTurn = shoppingTurnRef.current || newMember.id
+    if (!shoppingTurnRef.current) {
+      shoppingTurnRef.current = newShoppingTurn
+      setShoppingTurn(newShoppingTurn)
+    }
+    
     setIsFamilyModalOpen(false)
+    
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        console.log('💾 حفظ فوري بعد إضافة فرد العائلة...', updatedMembers.length, 'أعضاء')
+        
+        const response = await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: itemsRef.current,
+            familyMembers: updatedMembers,
+            customStores: customStoresRef.current,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: newShoppingTurn
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+        
+        if (response.ok) {
+          console.log('✅ تم حفظ فرد العائلة على السيرفر')
+        } else {
+          console.error('⚠️ فشل حفظ فرد العائلة على السيرفر')
+          showAlertMessage('⚠️ فشل الحفظ - تحقق من اتصالك بالإنترنت')
+        }
+      } catch (error) {
+        console.error('Create family member save error:', error)
+        showAlertMessage('⚠️ فشل الحفظ - تحقق من اتصالك بالإنترنت')
+      }
+    }
   }
 
   // تبديل المستخدم النشط (من العائلة)
-  const switchActiveMember = (member: UserProfile) => {
-    setCurrentUser(prev => ({ ...prev!, name: member.name, avatar: member.avatar }))
+  const switchActiveMember = async (member: UserProfile) => {
+    // 📌 تحديث state و ref معاً
+    shoppingTurnRef.current = member.id
     setShoppingTurn(member.id)
+    setCurrentUser(prev => ({ ...prev!, name: member.name, avatar: member.avatar }))
     setIsUserModalOpen(false)
+    
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: itemsRef.current,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: member.id
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+      } catch (error) {
+        console.error('Switch member save error:', error)
+      }
+    }
   }
 
   // تحويل الدور للشخص التالي
-  const passTurnToNext = (currentMemberId: string) => {
-    if (familyMembers.length <= 1) return
+  const passTurnToNext = async (currentMemberId: string) => {
+    if (familyMembersRef.current.length <= 1) return
     
-    const currentIndex = familyMembers.findIndex(m => m.id === currentMemberId)
-    const nextIndex = (currentIndex + 1) % familyMembers.length
-    const nextMember = familyMembers[nextIndex]
+    const currentIndex = familyMembersRef.current.findIndex(m => m.id === currentMemberId)
+    const nextIndex = (currentIndex + 1) % familyMembersRef.current.length
+    const nextMember = familyMembersRef.current[nextIndex]
     
+    // 📌 تحديث state و ref معاً
+    shoppingTurnRef.current = nextMember.id
     setShoppingTurn(nextMember.id)
     setCurrentUser(prev => ({ ...prev!, name: nextMember.name, avatar: nextMember.avatar }))
     setShowTurnNotification(true)
@@ -2534,6 +2632,32 @@ export default function Home() {
       clearTimeout(turnNotificationTimeoutRef.current)
     }
     turnNotificationTimeoutRef.current = setTimeout(() => setShowTurnNotification(false), 3000)
+    
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: itemsRef.current,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: nextMember.id
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+      } catch (error) {
+        console.error('Pass turn save error:', error)
+      }
+    }
   }
 
   // الحصول على صاحب الدور الحالي
