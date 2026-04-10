@@ -4,7 +4,7 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.6.2'
+export const APP_VERSION = '1.6.3'
 
 
 
@@ -13,6 +13,15 @@ export const RELEASE_DATE = '2026-04-10'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.6.3',
+    date: '2026-04-10',
+    changes: [
+      '🔥 إصلاح حرج: استخدام itemsRef.current بدلاً من items',
+      '💡 السبب: React closure كان يسبب فقدان الأغراض المضافة سابقاً',
+      '🔧 عند الإضافة السريعة، كانت items قديمة في الـ closure',
+    ]
+  },
   {
     version: '1.6.2',
     date: '2026-04-10',

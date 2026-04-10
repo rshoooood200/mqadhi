@@ -1795,10 +1795,12 @@ export default function Home() {
     const trimmedName = itemName.trim()
     console.log('✅ إضافة منتج:', trimmedName)
 
+    // 📌 استخدام itemsRef.current بدلاً من items لتجنب closure problems
+    const currentItems = itemsRef.current
     let updatedItems: Item[]
 
     if (editingItem) {
-      updatedItems = items.map(item =>
+      updatedItems = currentItems.map(item =>
         item.id === editingItem.id
           ? { ...item, name: trimmedName, category: itemCategory, quantity: itemQuantity || 1, notes: itemNotes, image: itemImage }
           : item
@@ -1822,7 +1824,7 @@ export default function Home() {
         prices: savedPrices,
         createdAt: new Date().toISOString()
       }
-      updatedItems = [...items, newItem]
+      updatedItems = [...currentItems, newItem]
       // 📌 تحديث state و ref معاً
       itemsRef.current = updatedItems
       setItems(updatedItems)
