@@ -1,10 +1,10 @@
 {
   "name": "home-items-manager",
-  "version": "1.5.4",
+  "version": "1.5.9",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && prisma db push --accept-data-loss && next build",
     "start": "next start -p 3000",
     "lint": "eslint .",
     "postinstall": "prisma generate",
