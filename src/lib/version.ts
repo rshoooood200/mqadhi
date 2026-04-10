@@ -4,7 +4,7 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.6.3'
+export const APP_VERSION = '1.6.4'
 
 
 
@@ -13,6 +13,16 @@ export const RELEASE_DATE = '2026-04-10'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.6.4',
+    date: '2026-04-10',
+    changes: [
+      '🔥 إصلاح حرج: navigator.sendBeacon لا يعمل بشكل موثوق',
+      '🔧 استخدام fetch مع keepalive بدلاً من sendBeacon',
+      '🔧 إصلاح deleteItem/togglePurchased: استخدام itemsRef.current',
+      '💡 المشكلة: sendBeacon لم يكن يرسل البيانات بشكل صحيح',
+    ]
+  },
   {
     version: '1.6.3',
     date: '2026-04-10',

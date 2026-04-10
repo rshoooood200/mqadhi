@@ -641,48 +641,45 @@ export default function Home() {
   // 💾 حفظ البيانات عند مغادرة الصفحة (beforeunload + visibilitychange)
   // 📌 نستخدم refs فقط - ولا نعيد إنشاء الـ event listeners عند كل تغيير
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      // 📌 استخدام refs للوصول لأحدث البيانات
-      if (isLoggedIn && isDataLoaded) {
-        const data = {
-          items: itemsRef.current,
-          familyMembers: familyMembersRef.current,
-          customStores: customStoresRef.current,
-          priceHistory: priceHistoryRef.current,
-          budget: { 
-            monthlyBudget: monthlyBudgetRef.current, 
-            spentAmount: spentAmountRef.current, 
-            startDate: budgetStartDateRef.current, 
-            shoppingTurn: shoppingTurnRef.current 
-          },
-          customCategories: customCategoriesRef.current,
-          savedProductNames: savedProductNamesRef.current
-        }
-        console.log('💾 beforeunload: حفظ', itemsRef.current.length, 'عناصر')
-        navigator.sendBeacon('/api/sync', JSON.stringify(data))
+    // دالة حفظ موحدة تستخدم fetch مع keepalive
+    const saveToServer = (reason: string) => {
+      if (!isLoggedIn || !isDataLoaded) return
+      
+      const data = {
+        items: itemsRef.current,
+        familyMembers: familyMembersRef.current,
+        customStores: customStoresRef.current,
+        priceHistory: priceHistoryRef.current,
+        budget: { 
+          monthlyBudget: monthlyBudgetRef.current, 
+          spentAmount: spentAmountRef.current, 
+          startDate: budgetStartDateRef.current, 
+          shoppingTurn: shoppingTurnRef.current 
+        },
+        customCategories: customCategoriesRef.current,
+        savedProductNames: savedProductNamesRef.current
       }
+      
+      console.log(`💾 ${reason}: حفظ`, itemsRef.current.length, 'عناصر')
+      
+      // 🔧 استخدام fetch مع keepalive بدلاً من sendBeacon
+      // keepalive يسمح للطلب بالاستمرار حتى بعد إغلاق الصفحة
+      fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        keepalive: true // 🔧 مهم: يسمح بالحفظ حتى بعد إغلاق الصفحة
+      }).catch(err => console.error(`Save error (${reason}):`, err))
+    }
+
+    const handleBeforeUnload = () => {
+      saveToServer('beforeunload')
     }
 
     // 📌 visibilitychange - أفضل من beforeunload للأجهزة المحمولة
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && isLoggedIn && isDataLoaded) {
-        // 📌 استخدام refs للوصول لأحدث البيانات
-        const data = {
-          items: itemsRef.current,
-          familyMembers: familyMembersRef.current,
-          customStores: customStoresRef.current,
-          priceHistory: priceHistoryRef.current,
-          budget: { 
-            monthlyBudget: monthlyBudgetRef.current, 
-            spentAmount: spentAmountRef.current, 
-            startDate: budgetStartDateRef.current, 
-            shoppingTurn: shoppingTurnRef.current 
-          },
-          customCategories: customCategoriesRef.current,
-          savedProductNames: savedProductNamesRef.current
-        }
-        console.log('💾 visibilitychange: حفظ', itemsRef.current.length, 'عناصر')
-        navigator.sendBeacon('/api/sync', JSON.stringify(data))
+      if (document.visibilityState === 'hidden') {
+        saveToServer('visibilitychange')
       }
     }
 
@@ -690,35 +687,7 @@ export default function Home() {
     const handlePageShow = async (event: PageTransitionEvent) => {
       if (event.persisted) {
         console.log('📌 pageshow: العودة من bfcache')
-        // 📌 استخدام refs للوصول لأحدث البيانات
-        if (isLoggedIn && isDataLoaded) {
-          try {
-            const response = await fetch('/api/sync', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                items: itemsRef.current,
-                familyMembers: familyMembersRef.current,
-                customStores: customStoresRef.current,
-                priceHistory: priceHistoryRef.current,
-                budget: { 
-                  monthlyBudget: monthlyBudgetRef.current, 
-                  spentAmount: spentAmountRef.current, 
-                  startDate: budgetStartDateRef.current, 
-                  shoppingTurn: shoppingTurnRef.current 
-                },
-                customCategories: customCategoriesRef.current,
-                savedProductNames: savedProductNamesRef.current
-              })
-            })
-
-            if (response.ok) {
-              console.log('✅ pageshow: تم حفظ البيانات المحلية')
-            }
-          } catch (error) {
-            console.error('pageshow save error:', error)
-          }
-        }
+        saveToServer('pageshow')
       }
     }
 
@@ -1879,7 +1848,9 @@ export default function Home() {
 
   // حذف غرض مع حفظ سعره في تتبع الأسعار
   const deleteItem = async (id: string) => {
-    const item = items.find(i => i.id === id)
+    // 📌 استخدام itemsRef.current للحصول على أحدث البيانات
+    const currentItems = itemsRef.current
+    const item = currentItems.find(i => i.id === id)
     if (!item) return
 
     // حفظ السعر في تتبع الأسعار قبل الحذف
@@ -1900,8 +1871,8 @@ export default function Home() {
       setPriceHistory(newPriceHistory)
     }
 
-    // تحديث القائمة محلياً
-    const newItems = items.filter(i => i.id !== id)
+    // تحديث القائمة محلياً - 📌 استخدام currentItems بدلاً من items
+    const newItems = currentItems.filter(i => i.id !== id)
     // 📌 تحديث state و ref معاً
     itemsRef.current = newItems
     setItems(newItems)
@@ -1948,7 +1919,9 @@ export default function Home() {
 
   // تبديل حالة الشراء
   const togglePurchased = async (id: string) => {
-    const item = items.find(i => i.id === id)
+    // 📌 استخدام itemsRef.current للحصول على أحدث البيانات
+    const currentItems = itemsRef.current
+    const item = currentItems.find(i => i.id === id)
     if (!item) return
     
     const itemPrice = item.prices && item.prices.length > 0 
@@ -1962,8 +1935,8 @@ export default function Home() {
       newSpentAmount = Math.max(0, newSpentAmount - itemPrice)
     }
     
-    // 📌 تحديث states و refs معاً
-    const newItems = items.map(it => 
+    // 📌 تحديث states و refs معاً - استخدام currentItems
+    const newItems = currentItems.map(it => 
       it.id === id ? { ...it, isPurchased: !it.isPurchased } : it
     )
     itemsRef.current = newItems
