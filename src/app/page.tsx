@@ -5339,7 +5339,11 @@ export default function Home() {
                   <input
                     type="number"
                     value={monthlyBudget || ''}
-                    onChange={(e) => setMonthlyBudget(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0
+                      setMonthlyBudget(value)
+                      monthlyBudgetRef.current = value
+                    }}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700"
                     placeholder="مثال: 3000"
                   />
@@ -5356,11 +5360,40 @@ export default function Home() {
                       placeholder="مثال: 100 أو -50"
                     />
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const amount = parseFloat(adjustAmount)
                         if (!isNaN(amount)) {
-                          setSpentAmount(prev => Math.max(0, prev + amount))
+                          const newSpentAmount = Math.max(0, spentAmount + amount)
+                          setSpentAmount(newSpentAmount)
+                          spentAmountRef.current = newSpentAmount
                           setAdjustAmount('')
+                          
+                          // 🚨 حفظ فوري على السيرفر
+                          if (isLoggedIn && isDataLoaded) {
+                            try {
+                              await fetch('/api/sync', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  items: itemsRef.current,
+                                  familyMembers: familyMembersRef.current,
+                                  customStores: customStoresRef.current,
+                                  priceHistory: priceHistoryRef.current,
+                                  budget: {
+                                    monthlyBudget: monthlyBudgetRef.current,
+                                    spentAmount: newSpentAmount,
+                                    startDate: budgetStartDateRef.current,
+                                    shoppingTurn: shoppingTurnRef.current
+                                  },
+                                  customCategories: customCategoriesRef.current,
+                                  savedProductNames: savedProductNamesRef.current
+                                })
+                              })
+                              console.log('✅ تم حفظ تعديل المصروفات')
+                            } catch (error) {
+                              console.error('Adjust spent error:', error)
+                            }
+                          }
                         }
                       }}
                       className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-medium transition-colors"
@@ -5380,10 +5413,38 @@ export default function Home() {
                     </div>
                     {spentAmount > 0 && (
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (confirm('⚠️ هل أنت متأكد من تصفير المصروفات؟\n\nسيتم إعادة تعيين المصروفات إلى صفر.')) {
                             setSpentAmount(0)
+                            spentAmountRef.current = 0
                             showAlertMessage('✅ تم تصفير المصروفات')
+                            
+                            // 🚨 حفظ فوري على السيرفر
+                            if (isLoggedIn && isDataLoaded) {
+                              try {
+                                await fetch('/api/sync', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    items: itemsRef.current,
+                                    familyMembers: familyMembersRef.current,
+                                    customStores: customStoresRef.current,
+                                    priceHistory: priceHistoryRef.current,
+                                    budget: {
+                                      monthlyBudget: monthlyBudgetRef.current,
+                                      spentAmount: 0,
+                                      startDate: budgetStartDateRef.current,
+                                      shoppingTurn: shoppingTurnRef.current
+                                    },
+                                    customCategories: customCategoriesRef.current,
+                                    savedProductNames: savedProductNamesRef.current
+                                  })
+                                })
+                                console.log('✅ تم حفظ تصفير المصروفات')
+                              } catch (error) {
+                                console.error('Reset spent error:', error)
+                              }
+                            }
                           }
                         }}
                         className="text-xs bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1.5 rounded-lg font-medium transition-colors"
@@ -5397,10 +5458,50 @@ export default function Home() {
 
                 <div className="flex gap-3 pt-4">
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      // تحديث refs
                       if (monthlyBudget > 0 && !budgetStartDate) {
-                        setBudgetStartDate(new Date().toISOString().split('T')[0])
+                        const newStartDate = new Date().toISOString().split('T')[0]
+                        setBudgetStartDate(newStartDate)
+                        budgetStartDateRef.current = newStartDate
                       }
+                      
+                      // 🚨 حفظ فوري على السيرفر
+                      if (isLoggedIn && isDataLoaded) {
+                        try {
+                          console.log('💰 حفظ الميزانية على السيرفر...')
+                          const response = await fetch('/api/sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              items: itemsRef.current,
+                              familyMembers: familyMembersRef.current,
+                              customStores: customStoresRef.current,
+                              priceHistory: priceHistoryRef.current,
+                              budget: {
+                                monthlyBudget: monthlyBudget,
+                                spentAmount: spentAmount,
+                                startDate: budgetStartDateRef.current || (monthlyBudget > 0 ? new Date().toISOString().split('T')[0] : ''),
+                                shoppingTurn: shoppingTurnRef.current
+                              },
+                              customCategories: customCategoriesRef.current,
+                              savedProductNames: savedProductNamesRef.current
+                            })
+                          })
+                          
+                          if (response.ok) {
+                            console.log('✅ تم حفظ الميزانية على السيرفر')
+                            showAlertMessage('✅ تم حفظ الميزانية بنجاح')
+                          } else {
+                            console.error('⚠️ فشل حفظ الميزانية')
+                            showAlertMessage('⚠️ فشل حفظ الميزانية')
+                          }
+                        } catch (error) {
+                          console.error('Budget save error:', error)
+                          showAlertMessage('⚠️ فشل الحفظ - تحقق من اتصالك')
+                        }
+                      }
+                      
                       setIsBudgetModalOpen(false)
                     }}
                     className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-medium transition-colors"
