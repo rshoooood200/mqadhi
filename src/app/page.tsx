@@ -1569,7 +1569,11 @@ export default function Home() {
         customCategoriesRef.current = []
         setCustomCategories([])
         savedProductNamesRef.current = []
-        
+        setSavedProductNames([])
+
+        // 🚨 مهم جداً: تفعيل isDataLoaded للسماح بالحفظ
+        setIsDataLoaded(true)
+
         console.log('✅ تم إنشاء الحساب بنجاح:', data.user.name)
       } else {
         setAuthError(data.error || 'حدث خطأ')
@@ -2413,83 +2417,171 @@ export default function Home() {
   }
 
   // حفظ تعديلات المنتج
-  const savePriceProductEdit = () => {
+  const savePriceProductEdit = async () => {
     if (!editingPriceProductName || !editingPriceData) return
     if (!editingPriceData.newName.trim()) return
 
-    setPriceHistory(prev => {
-      const newState = { ...prev }
-      // حذف المفتاح القديم إذا تم تغيير الاسم
-      if (editingPriceProductName !== editingPriceData.newName.trim()) {
-        delete newState[editingPriceProductName]
-      }
-      // حفظ بالاسم الجديد
-      newState[editingPriceData.newName.trim().toLowerCase()] = editingPriceData.prices.filter(p => p.store && p.price > 0)
-      return newState
-    })
-
-    // تحديث اسم المنتج في قائمة الأغراض أيضاً
+    // 📌 تحديث priceHistory و ref معاً
+    const newPriceHistory = { ...priceHistoryRef.current }
+    // حذف المفتاح القديم إذا تم تغيير الاسم
     if (editingPriceProductName !== editingPriceData.newName.trim()) {
-      setItems(prev => prev.map(item =>
+      delete newPriceHistory[editingPriceProductName]
+    }
+    // حفظ بالاسم الجديد
+    newPriceHistory[editingPriceData.newName.trim().toLowerCase()] = editingPriceData.prices.filter(p => p.store && p.price > 0)
+    priceHistoryRef.current = newPriceHistory
+    setPriceHistory(newPriceHistory)
+
+    // 📌 تحديث items و ref معاً
+    let newItems = itemsRef.current
+    if (editingPriceProductName !== editingPriceData.newName.trim()) {
+      newItems = itemsRef.current.map(item =>
         item.name.toLowerCase() === editingPriceProductName
           ? { ...item, name: editingPriceData.newName.trim() }
           : item
-      ))
+      )
+      itemsRef.current = newItems
+      setItems(newItems)
     }
 
     setIsEditPriceModalOpen(false)
     setEditingPriceProductName(null)
     setEditingPriceData(null)
+
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: newItems,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: newPriceHistory,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+        console.log('✅ تم حفظ تعديلات المنتج على السيرفر')
+      } catch (error) {
+        console.error('Save price product edit error:', error)
+        showAlertMessage('⚠️ فشل الحفظ - تحقق من اتصالك بالإنترنت')
+      }
+    }
   }
 
   // حذف منتج كامل من ذاكرة الأسعار
-  const deletePriceProduct = (productName: string) => {
+  const deletePriceProduct = async (productName: string) => {
     if (!confirm(`هل تريد حذف "${productName}" من ذاكرة الأسعار؟`)) return
-    setPriceHistory(prev => {
-      const newState = { ...prev }
-      delete newState[productName]
-      return newState
-    })
+
+    // 📌 تحديث priceHistory و ref معاً
+    const newPriceHistory = { ...priceHistoryRef.current }
+    delete newPriceHistory[productName]
+    priceHistoryRef.current = newPriceHistory
+    setPriceHistory(newPriceHistory)
+
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: itemsRef.current,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: newPriceHistory,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+        console.log('✅ تم حذف المنتج من ذاكرة الأسعار على السيرفر')
+      } catch (error) {
+        console.error('Delete price product error:', error)
+        showAlertMessage('⚠️ فشل الحفظ - تحقق من اتصالك بالإنترنت')
+      }
+    }
   }
 
   // 🧹 تنظيف الأسعار المكررة من ذاكرة الأسعار
-  const cleanupDuplicatePrices = () => {
+  const cleanupDuplicatePrices = async () => {
     let totalRemoved = 0
     let productsCleaned = 0
 
-    setPriceHistory(prev => {
-      const newState: Record<string, PriceEntry[]> = {}
-      
-      for (const [productName, prices] of Object.entries(prev)) {
-        const uniquePrices: PriceEntry[] = []
-        const seen = new Set<string>()
-        
-        for (const price of prices) {
-          // إنشاء مفتاح فريد من المتجر والسعر
-          const key = `${price.store}|${price.price}`
-          
-          if (!seen.has(key)) {
-            seen.add(key)
-            uniquePrices.push(price)
-          } else {
-            totalRemoved++
-          }
+    // 📌 تحديث priceHistory و ref معاً
+    const newState: Record<string, PriceEntry[]> = {}
+
+    for (const [productName, prices] of Object.entries(priceHistoryRef.current)) {
+      const uniquePrices: PriceEntry[] = []
+      const seen = new Set<string>()
+
+      for (const price of prices) {
+        // إنشاء مفتاح فريد من المتجر والسعر
+        const key = `${price.store}|${price.price}`
+
+        if (!seen.has(key)) {
+          seen.add(key)
+          uniquePrices.push(price)
+        } else {
+          totalRemoved++
         }
-        
-        if (uniquePrices.length !== prices.length) {
-          productsCleaned++
-        }
-        
-        newState[productName] = uniquePrices
       }
-      
-      return newState
-    })
+
+      if (uniquePrices.length !== prices.length) {
+        productsCleaned++
+      }
+
+      newState[productName] = uniquePrices
+    }
+
+    priceHistoryRef.current = newState
+    setPriceHistory(newState)
 
     if (totalRemoved > 0) {
       showAlertMessage(`✅ تم حذف ${totalRemoved} سعر مكرر من ${productsCleaned} منتج`)
     } else {
       showAlertMessage('✅ لا توجد أسعار مكررة')
+    }
+
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: itemsRef.current,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: newState,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+        console.log('✅ تم حفظ تنظيف الأسعار المكررة على السيرفر')
+      } catch (error) {
+        console.error('Cleanup duplicate prices error:', error)
+        showAlertMessage('⚠️ فشل الحفظ - تحقق من اتصالك بالإنترنت')
+      }
     }
   }
 
@@ -2666,7 +2758,9 @@ export default function Home() {
       keywords: newCategoryKeywords.split(',').map(k => k.trim()).filter(k => k)
     }
 
-    const updatedCategories = [...customCategories, newCategory]
+    // 📌 تحديث customCategories و ref معاً
+    const updatedCategories = [...customCategoriesRef.current, newCategory]
+    customCategoriesRef.current = updatedCategories
     setCustomCategories(updatedCategories)
 
     // حفظ فوري على السيرفر (البيانات محمية في الـ API)
@@ -2674,13 +2768,18 @@ export default function Home() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items,
-        familyMembers,
-        customStores,
-        priceHistory,
-        budget: { monthlyBudget, spentAmount, startDate: budgetStartDate, shoppingTurn },
+        items: itemsRef.current,
+        familyMembers: familyMembersRef.current,
+        customStores: customStoresRef.current,
+        priceHistory: priceHistoryRef.current,
+        budget: {
+          monthlyBudget: monthlyBudgetRef.current,
+          spentAmount: spentAmountRef.current,
+          startDate: budgetStartDateRef.current,
+          shoppingTurn: shoppingTurnRef.current
+        },
         customCategories: updatedCategories,
-        savedProductNames
+        savedProductNames: savedProductNamesRef.current
       })
     }).then(() => {
       console.log('✅ تم حفظ التصنيف الجديد')

@@ -4,7 +4,7 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.6.4'
+export const APP_VERSION = '1.6.5'
 
 
 
@@ -13,6 +13,18 @@ export const RELEASE_DATE = '2026-04-10'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.6.5',
+    date: '2026-04-10',
+    changes: [
+      '🔥 إصلاح حرج: isDataLoaded لم يكن يُعين بعد إنشاء حساب جديد',
+      '💡 المستخدم الجديد لم يكن يستطيع حفظ أي بيانات!',
+      '🔧 إصلاح savePriceProductEdit: لم يكن يحفظ على السيرفر',
+      '🔧 إصلاح deletePriceProduct: لم يكن يحفظ على السيرفر',
+      '🔧 إصلاح cleanupDuplicatePrices: لم يكن يحفظ على السيرفر',
+      '🔧 إصلاح createCustomCategory: كان يستخدم state بدلاً من refs',
+    ]
+  },
   {
     version: '1.6.4',
     date: '2026-04-10',
