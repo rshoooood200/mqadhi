@@ -580,105 +580,145 @@ export default function Home() {
   const budgetStartDateRef = useRef<string>(budgetStartDate)
   const shoppingTurnRef = useRef<string>(shoppingTurn)
 
-  // 📌 تحديث الـ refs عند تغيير البيانات
-  useEffect(() => {
-    itemsRef.current = items
-  }, [items])
-  useEffect(() => {
-    familyMembersRef.current = familyMembers
-  }, [familyMembers])
-  useEffect(() => {
-    customStoresRef.current = customStores
-  }, [customStores])
-  useEffect(() => {
-    priceHistoryRef.current = priceHistory
-  }, [priceHistory])
-  useEffect(() => {
-    customCategoriesRef.current = customCategories
-  }, [customCategories])
-  useEffect(() => {
-    savedProductNamesRef.current = savedProductNames
-  }, [savedProductNames])
-  useEffect(() => {
-    monthlyBudgetRef.current = monthlyBudget
-    spentAmountRef.current = spentAmount
-    budgetStartDateRef.current = budgetStartDate
-    shoppingTurnRef.current = shoppingTurn
-  }, [monthlyBudget, spentAmount, budgetStartDate, shoppingTurn])
+  // 📌 دوال محسّنة لتحديث state و ref معاً بشكل متزامن
+  const updateItems = useCallback((newItems: Item[] | ((prev: Item[]) => Item[])) => {
+    setItems(prev => {
+      const updated = typeof newItems === 'function' ? newItems(prev) : newItems
+      itemsRef.current = updated // تحديث الـ ref فوراً مع الـ state
+      console.log('📝 updateItems:', updated.length, 'عناصر')
+      return updated
+    })
+  }, [])
+
+  const updateFamilyMembers = useCallback((newMembers: UserProfile[] | ((prev: UserProfile[]) => UserProfile[])) => {
+    setFamilyMembers(prev => {
+      const updated = typeof newMembers === 'function' ? newMembers(prev) : newMembers
+      familyMembersRef.current = updated
+      return updated
+    })
+  }, [])
+
+  const updateCustomStores = useCallback((newStores: string[] | ((prev: string[]) => string[])) => {
+    setCustomStores(prev => {
+      const updated = typeof newStores === 'function' ? newStores(prev) : newStores
+      customStoresRef.current = updated
+      return updated
+    })
+  }, [])
+
+  const updatePriceHistory = useCallback((newHistory: Record<string, PriceEntry[]> | ((prev: Record<string, PriceEntry[]>) => Record<string, PriceEntry[]>)) => {
+    setPriceHistory(prev => {
+      const updated = typeof newHistory === 'function' ? newHistory(prev) : newHistory
+      priceHistoryRef.current = updated
+      return updated
+    })
+  }, [])
+
+  const updateBudget = useCallback((budget: {
+    monthlyBudget?: number
+    spentAmount?: number
+    startDate?: string
+    shoppingTurn?: string
+  }) => {
+    if (budget.monthlyBudget !== undefined) {
+      setMonthlyBudget(budget.monthlyBudget)
+      monthlyBudgetRef.current = budget.monthlyBudget
+    }
+    if (budget.spentAmount !== undefined) {
+      setSpentAmount(budget.spentAmount)
+      spentAmountRef.current = budget.spentAmount
+    }
+    if (budget.startDate !== undefined) {
+      setBudgetStartDate(budget.startDate)
+      budgetStartDateRef.current = budget.startDate
+    }
+    if (budget.shoppingTurn !== undefined) {
+      setShoppingTurn(budget.shoppingTurn)
+      shoppingTurnRef.current = budget.shoppingTurn
+    }
+  }, [])
 
   // 💾 حفظ البيانات عند مغادرة الصفحة (beforeunload + visibilitychange)
+  // 📌 نستخدم refs فقط - ولا نعيد إنشاء الـ event listeners عند كل تغيير
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // 📌 حفظ البيانات دائماً إذا كان مسجل الدخول وتم تحميل البيانات
-      // لا نشترط وجود بيانات - قد يكون المستخدم حذف كل شيء
+      // 📌 استخدام refs للوصول لأحدث البيانات
       if (isLoggedIn && isDataLoaded) {
         const data = {
-          items,
-          familyMembers,
-          customStores,
-          priceHistory,
-          budget: { monthlyBudget, spentAmount, startDate: budgetStartDate, shoppingTurn },
-          customCategories,
-          savedProductNames
+          items: itemsRef.current,
+          familyMembers: familyMembersRef.current,
+          customStores: customStoresRef.current,
+          priceHistory: priceHistoryRef.current,
+          budget: { 
+            monthlyBudget: monthlyBudgetRef.current, 
+            spentAmount: spentAmountRef.current, 
+            startDate: budgetStartDateRef.current, 
+            shoppingTurn: shoppingTurnRef.current 
+          },
+          customCategories: customCategoriesRef.current,
+          savedProductNames: savedProductNamesRef.current
         }
-        // sendBeacon يعمل حتى عند إغلاق الصفحة
+        console.log('💾 beforeunload: حفظ', itemsRef.current.length, 'عناصر')
         navigator.sendBeacon('/api/sync', JSON.stringify(data))
-        console.log('💾 تم حفظ البيانات قبل مغادرة الصفحة')
       }
     }
 
     // 📌 visibilitychange - أفضل من beforeunload للأجهزة المحمولة
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && isLoggedIn && isDataLoaded) {
-        // حفظ البيانات عندما يصبح التطبيق مخفياً
+        // 📌 استخدام refs للوصول لأحدث البيانات
         const data = {
-          items,
-          familyMembers,
-          customStores,
-          priceHistory,
-          budget: { monthlyBudget, spentAmount, startDate: budgetStartDate, shoppingTurn },
-          customCategories,
-          savedProductNames
+          items: itemsRef.current,
+          familyMembers: familyMembersRef.current,
+          customStores: customStoresRef.current,
+          priceHistory: priceHistoryRef.current,
+          budget: { 
+            monthlyBudget: monthlyBudgetRef.current, 
+            spentAmount: spentAmountRef.current, 
+            startDate: budgetStartDateRef.current, 
+            shoppingTurn: shoppingTurnRef.current 
+          },
+          customCategories: customCategoriesRef.current,
+          savedProductNames: savedProductNamesRef.current
         }
+        console.log('💾 visibilitychange: حفظ', itemsRef.current.length, 'عناصر')
         navigator.sendBeacon('/api/sync', JSON.stringify(data))
-        console.log('💾 تم حفظ البيانات عند إخفاء التطبيق')
       }
     }
 
     // 📌 معالجة pageshow للتعامل مع bfcache (back-forward cache)
-    // هذا يمنع عرض بيانات قديمة عند العودة للتطبيق
     const handlePageShow = async (event: PageTransitionEvent) => {
       if (event.persisted) {
-        console.log('📌 تم العودة من bfcache - حفظ البيانات المحلية')
-
-        // 📌 حفظ البيانات المحلية على السيرفر
-        // ❌ لا نعيد التحميل من السيرفر لأن هذا قد يكتب فوق البيانات الجديدة
+        console.log('📌 pageshow: العودة من bfcache')
+        // 📌 استخدام refs للوصول لأحدث البيانات
         if (isLoggedIn && isDataLoaded) {
           try {
             const response = await fetch('/api/sync', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                items,
-                familyMembers,
-                customStores,
-                priceHistory,
-                budget: { monthlyBudget, spentAmount, startDate: budgetStartDate, shoppingTurn },
-                customCategories,
-                savedProductNames
+                items: itemsRef.current,
+                familyMembers: familyMembersRef.current,
+                customStores: customStoresRef.current,
+                priceHistory: priceHistoryRef.current,
+                budget: { 
+                  monthlyBudget: monthlyBudgetRef.current, 
+                  spentAmount: spentAmountRef.current, 
+                  startDate: budgetStartDateRef.current, 
+                  shoppingTurn: shoppingTurnRef.current 
+                },
+                customCategories: customCategoriesRef.current,
+                savedProductNames: savedProductNamesRef.current
               })
             })
 
             if (response.ok) {
-              console.log('✅ تم حفظ البيانات المحلية من bfcache')
-            } else {
-              console.error('⚠️ فشل حفظ البيانات من bfcache')
+              console.log('✅ pageshow: تم حفظ البيانات المحلية')
             }
           } catch (error) {
-            console.error('فشل حفظ البيانات من bfcache:', error)
+            console.error('pageshow save error:', error)
           }
         }
-        // ❌ تم إزالة loadUserData() لأنه كان يكتب فوق البيانات المحلية بالبيانات القديمة من السيرفر
       }
     }
 
@@ -690,8 +730,8 @@ export default function Home() {
       window.removeEventListener('pageshow', handlePageShow)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn, isDataLoaded, items, familyMembers, customStores, priceHistory, monthlyBudget, spentAmount, budgetStartDate, shoppingTurn, customCategories, savedProductNames])
+  // 📌 فقط isLoggedIn و isDataLoaded في الـ dependencies - لا نعيد إنشاء عند تغيير البيانات
+  }, [isLoggedIn, isDataLoaded])
 
   // PWA install prompt
   useEffect(() => {
@@ -1061,27 +1101,57 @@ export default function Home() {
   // تحميل البيانات من السيرفر
   const loadUserData = async () => {
     try {
+      console.log('📥 loadUserData: جاري تحميل البيانات...')
       const response = await fetch('/api/sync')
       if (response.ok) {
         const data = await response.json()
-        setItems(data.items || [])
-        setFamilyMembers(data.familyMembers || [])
-        setCustomStores(data.customStores || [])
-        setPriceHistory(data.priceHistory || {})
-        setCustomCategories(data.customCategories || [])
-        // تحميل الاقتراحات من السيرفر
-        if (data.savedProductNames && data.savedProductNames.length > 0) {
-          setSavedProductNames(data.savedProductNames)
-        }
+        
+        // 📌 تحديث states و refs معاً بشكل متزامن
+        const loadedItems = data.items || []
+        const loadedFamilyMembers = data.familyMembers || []
+        const loadedCustomStores = data.customStores || []
+        const loadedPriceHistory = data.priceHistory || {}
+        const loadedCustomCategories = data.customCategories || []
+        const loadedSavedProductNames = data.savedProductNames || []
+        
+        // تحديث الـ states
+        setItems(loadedItems)
+        setFamilyMembers(loadedFamilyMembers)
+        setCustomStores(loadedCustomStores)
+        setPriceHistory(loadedPriceHistory)
+        setCustomCategories(loadedCustomCategories)
+        setSavedProductNames(loadedSavedProductNames)
+        
+        // 📌 تحديث الـ refs فوراً
+        itemsRef.current = loadedItems
+        familyMembersRef.current = loadedFamilyMembers
+        customStoresRef.current = loadedCustomStores
+        priceHistoryRef.current = loadedPriceHistory
+        customCategoriesRef.current = loadedCustomCategories
+        savedProductNamesRef.current = loadedSavedProductNames
+        
         if (data.budget) {
-          setMonthlyBudget(data.budget.monthlyBudget || 0)
-          setSpentAmount(data.budget.spentAmount || 0)
-          setBudgetStartDate(data.budget.startDate || '')
-          setShoppingTurn(data.budget.shoppingTurn || '')
+          const budget = {
+            monthlyBudget: data.budget.monthlyBudget || 0,
+            spentAmount: data.budget.spentAmount || 0,
+            startDate: data.budget.startDate || '',
+            shoppingTurn: data.budget.shoppingTurn || ''
+          }
+          setMonthlyBudget(budget.monthlyBudget)
+          setSpentAmount(budget.spentAmount)
+          setBudgetStartDate(budget.startDate)
+          setShoppingTurn(budget.shoppingTurn)
+          
+          // 📌 تحديث refs للميزانية
+          monthlyBudgetRef.current = budget.monthlyBudget
+          spentAmountRef.current = budget.spentAmount
+          budgetStartDateRef.current = budget.startDate
+          shoppingTurnRef.current = budget.shoppingTurn
         }
+        
         // تحديد أن البيانات تم تحميلها - الآن يمكن الحفظ
         setIsDataLoaded(true)
-        console.log('✅ تم تحميل البيانات بنجاح - يمكن الآن الحفظ')
+        console.log('✅ loadUserData: تم تحميل', loadedItems.length, 'عناصر - refs محدثة')
       } else if (response.status === 401) {
         console.log('⚠️ الجلسة منتهية')
         setIsLoggedIn(false)
@@ -1655,7 +1725,7 @@ export default function Home() {
     const trimmedName = itemName.trim()
     console.log('✅ إضافة منتج:', trimmedName)
 
-    let updatedItems = items
+    let updatedItems: Item[]
 
     if (editingItem) {
       updatedItems = items.map(item =>
@@ -1663,11 +1733,13 @@ export default function Home() {
           ? { ...item, name: trimmedName, category: itemCategory, quantity: itemQuantity || 1, notes: itemNotes, image: itemImage }
           : item
       )
+      // 📌 تحديث state و ref معاً
+      itemsRef.current = updatedItems
       setItems(updatedItems)
       setEditingItem(null)
     } else {
       const productKey = trimmedName.toLowerCase()
-      const savedPrices = priceHistory[productKey] || []
+      const savedPrices = priceHistoryRef.current[productKey] || []
 
       const newItem: Item = {
         id: generateId(),
@@ -1681,6 +1753,8 @@ export default function Home() {
         createdAt: new Date().toISOString()
       }
       updatedItems = [...items, newItem]
+      // 📌 تحديث state و ref معاً
+      itemsRef.current = updatedItems
       setItems(updatedItems)
       console.log('✅ تمت إضافة المنتج:', newItem.name, 'إجمالي المنتجات:', updatedItems.length)
     }
@@ -1737,7 +1811,7 @@ export default function Home() {
     if (!item) return
 
     // حفظ السعر في تتبع الأسعار قبل الحذف
-    let newPriceHistory = { ...priceHistory }
+    let newPriceHistory = { ...priceHistoryRef.current }
     if (item.prices && item.prices.length > 0) {
       const productKey = item.name.toLowerCase().trim()
       const existingPrices = newPriceHistory[productKey] || []
@@ -1749,11 +1823,15 @@ export default function Home() {
         }
       })
       newPriceHistory[productKey] = newPrices
+      // 📌 تحديث state و ref معاً
+      priceHistoryRef.current = newPriceHistory
       setPriceHistory(newPriceHistory)
     }
 
     // تحديث القائمة محلياً
     const newItems = items.filter(i => i.id !== id)
+    // 📌 تحديث state و ref معاً
+    itemsRef.current = newItems
     setItems(newItems)
 
     // 🚨 حفظ فوري على السيرفر لمنع فقدان الحذف
@@ -1797,7 +1875,7 @@ export default function Home() {
   }
 
   // تبديل حالة الشراء
-  const togglePurchased = (id: string) => {
+  const togglePurchased = async (id: string) => {
     const item = items.find(i => i.id === id)
     if (!item) return
     
@@ -1805,15 +1883,48 @@ export default function Home() {
       ? Math.min(...item.prices.map(p => p.price)) * item.quantity
       : 0
     
+    let newSpentAmount = spentAmountRef.current
     if (!item.isPurchased && itemPrice > 0) {
-      setSpentAmount(prev => prev + itemPrice)
+      newSpentAmount = newSpentAmount + itemPrice
     } else if (item.isPurchased && itemPrice > 0) {
-      setSpentAmount(prev => Math.max(0, prev - itemPrice))
+      newSpentAmount = Math.max(0, newSpentAmount - itemPrice)
     }
     
-    setItems(items.map(it => 
+    // 📌 تحديث states و refs معاً
+    const newItems = items.map(it => 
       it.id === id ? { ...it, isPurchased: !it.isPurchased } : it
-    ))
+    )
+    itemsRef.current = newItems
+    setItems(newItems)
+    
+    spentAmountRef.current = newSpentAmount
+    setSpentAmount(newSpentAmount)
+    
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: newItems,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: newSpentAmount,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+      } catch (error) {
+        console.error('Toggle purchased save error:', error)
+      }
+    }
   }
 
   // فتح نموذج التعديل
