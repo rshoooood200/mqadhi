@@ -131,56 +131,78 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// 📌 Map للتحكم في الطلبات المتوازية لكل مستخدم
+const userSaveLocks = new Map<string, { promise: Promise<void>; resolve: () => void }>()
+
 // POST - حفظ بيانات المستخدم
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser(request)
+  if (!user) {
+    console.log('⚠️ POST /api/sync: المستخدم غير مسجل الدخول')
+    return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
+  }
+
+  console.log('📥 POST /api/sync للمستخدم:', user.email, 'ID:', user.id)
+
+  // 📌 دعم sendBeacon الذي يرسل البيانات كـ text/plain
+  const contentType = request.headers.get('content-type') || ''
+  let data: any
+
+  if (contentType.includes('application/json')) {
+    data = await request.json()
+  } else {
+    // sendBeacon يرسل البيانات كـ text/plain
+    const text = await request.text()
+    try {
+      data = JSON.parse(text)
+    } catch {
+      console.log('⚠️ خطأ في تنسيق البيانات')
+      return NextResponse.json({ error: 'خطأ في تنسيق البيانات' }, { status: 400 })
+    }
+  }
+
+  const { items, familyMembers, customStores, priceHistory, budget, customCategories, savedProductNames, clientTimestamp } = data
+
+  console.log('📊 البيانات المستلمة:', {
+    items: items?.length || 0,
+    familyMembers: familyMembers?.length || 0,
+    customStores: customStores?.length || 0,
+    priceHistoryKeys: priceHistory ? Object.keys(priceHistory).length : 0,
+    budget: budget ? { monthlyBudget: budget.monthlyBudget, spentAmount: budget.spentAmount, shoppingTurn: budget.shoppingTurn } : null,
+    customCategories: customCategories?.length || 0,
+    savedProductNames: savedProductNames?.length || 0,
+    clientTimestamp
+  })
+
+  // التحقق مما إذا كانت items محددة (حتى لو فارغة)
+  const itemsSpecified = items !== undefined
+  const hasItems = items && items.length > 0
+  const hasFamilyMembers = familyMembers && familyMembers.length > 0
+  const hasCustomStores = customStores && customStores.length > 0
+  const hasPriceHistory = priceHistory && Object.keys(priceHistory).length > 0
+  const hasCustomCategories = customCategories && customCategories.length > 0
+  const hasSavedProductNames = savedProductNames && savedProductNames.length > 0
+  const hasBudget = budget && (budget.monthlyBudget > 0 || budget.spentAmount > 0 || budget.shoppingTurn)
+
+  // 🚨 حماية من Race Condition: انتظار أي عملية حفظ سابقة للمستخدم نفسه
+  const existingLock = userSaveLocks.get(user.id)
+  if (existingLock) {
+    console.log('⏳ انتظار عملية حفظ سابقة للمستخدم:', user.email)
+    try {
+      await existingLock.promise
+    } catch {
+      // تجاهل أخطاء العملية السابقة
+    }
+  }
+
+  // إنشاء قفل جديد لهذه العملية
+  let resolveLock: () => void
+  const lockPromise = new Promise<void>((resolve) => {
+    resolveLock = resolve
+  })
+  userSaveLocks.set(user.id, { promise: lockPromise, resolve: resolveLock! })
+
   try {
-    const user = await getCurrentUser(request)
-    if (!user) {
-      console.log('⚠️ POST /api/sync: المستخدم غير مسجل الدخول')
-      return NextResponse.json({ error: 'غير مسجل الدخول' }, { status: 401 })
-    }
-
-    console.log('📥 POST /api/sync للمستخدم:', user.email, 'ID:', user.id)
-
-    // 📌 دعم sendBeacon الذي يرسل البيانات كـ text/plain
-    const contentType = request.headers.get('content-type') || ''
-    let data: any
-
-    if (contentType.includes('application/json')) {
-      data = await request.json()
-    } else {
-      // sendBeacon يرسل البيانات كـ text/plain
-      const text = await request.text()
-      try {
-        data = JSON.parse(text)
-      } catch {
-        console.log('⚠️ خطأ في تنسيق البيانات')
-        return NextResponse.json({ error: 'خطأ في تنسيق البيانات' }, { status: 400 })
-      }
-    }
-
-    const { items, familyMembers, customStores, priceHistory, budget, customCategories, savedProductNames } = data
-
-    console.log('📊 البيانات المستلمة:', {
-      items: items?.length || 0,
-      familyMembers: familyMembers?.length || 0,
-      customStores: customStores?.length || 0,
-      priceHistoryKeys: priceHistory ? Object.keys(priceHistory).length : 0,
-      budget: budget ? { monthlyBudget: budget.monthlyBudget, spentAmount: budget.spentAmount, shoppingTurn: budget.shoppingTurn } : null,
-      customCategories: customCategories?.length || 0,
-      savedProductNames: savedProductNames?.length || 0
-    })
-
-    // التحقق مما إذا كانت items محددة (حتى لو فارغة)
-    const itemsSpecified = items !== undefined
-    const hasItems = items && items.length > 0
-    const hasFamilyMembers = familyMembers && familyMembers.length > 0
-    const hasCustomStores = customStores && customStores.length > 0
-    const hasPriceHistory = priceHistory && Object.keys(priceHistory).length > 0
-    const hasCustomCategories = customCategories && customCategories.length > 0
-    const hasSavedProductNames = savedProductNames && savedProductNames.length > 0
-    const hasBudget = budget && (budget.monthlyBudget > 0 || budget.spentAmount > 0 || budget.shoppingTurn)
-
     // جلب عدد البيانات الحالية
     const currentItemsCount = await prisma.item.count({ where: { userId: user.id } })
     
@@ -213,43 +235,50 @@ export async function POST(request: NextRequest) {
     }
 
     // 📌 إذا تم تحديد items (حتى لو فارغة)، نحذف القديمة ونحفظ الجديدة
+    // 🚨 استخدام transaction لضمان atomicity
     if (itemsSpecified) {
-      // حذف العناصر القديمة
-      console.log('🗑️ حذف العناصر القديمة...')
-      await prisma.item.deleteMany({ where: { userId: user.id } })
+      await prisma.$transaction(async (tx) => {
+        // حذف العناصر القديمة
+        console.log('🗑️ حذف العناصر القديمة...')
+        await tx.item.deleteMany({ where: { userId: user.id } })
 
-      // حفظ العناصر الجديدة (إذا وجدت)
-      if (hasItems) {
-        console.log('💾 حفظ', items.length, 'عناصر جديدة...')
-        for (const item of items) {
-          try {
-            await prisma.item.create({
-              data: {
-                // 🔧 لا نمرر ID - ندع Prisma يولد cuid صالح
-                name: item.name,
-                category: item.category,
-                quantity: item.quantity || 1,
-                notes: item.notes || '',
-                isPurchased: item.isPurchased || false,
-                image: item.image || null,
-                userId: user.id,
-                prices: {
-                  create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
-                    store: p.store,
-                    price: p.price,
-                    date: new Date(p.date)
-                  }))
+        // حفظ العناصر الجديدة (إذا وجدت)
+        if (hasItems) {
+          console.log('💾 حفظ', items.length, 'عناصر جديدة...')
+          for (const item of items) {
+            try {
+              await tx.item.create({
+                data: {
+                  // 🔧 لا نمرر ID - ندع Prisma يولد cuid صالح
+                  name: item.name,
+                  category: item.category,
+                  quantity: item.quantity || 1,
+                  notes: item.notes || '',
+                  isPurchased: item.isPurchased || false,
+                  image: item.image || null,
+                  userId: user.id,
+                  prices: {
+                    create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
+                      store: p.store,
+                      price: p.price,
+                      date: new Date(p.date)
+                    }))
+                  }
                 }
-              }
-            })
-          } catch (itemError) {
-            console.error('❌ خطأ في حفظ العنصر:', item.name, itemError)
+              })
+            } catch (itemError) {
+              console.error('❌ خطأ في حفظ العنصر:', item.name, itemError)
+            }
           }
+          console.log('✅ تم حفظ جميع العناصر')
+        } else {
+          console.log('📝 لا توجد عناصر للحفظ')
         }
-        console.log('✅ تم حفظ جميع العناصر')
-      } else {
-        console.log('📝 لا توجد عناصر للحفظ')
-      }
+      }, {
+        // 🚨 إعدادات الـ transaction
+        maxWait: 5000, // أقصى انتظار للحصول على lock
+        timeout: 30000, // timeout للعملية
+      })
     }
 
     // حفظ/تحديث أفراد العائلة
@@ -368,9 +397,20 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ تم حفظ جميع البيانات بنجاح للمستخدم:', user.email)
     return NextResponse.json({ success: true })
+
   } catch (error) {
     console.error('Sync post error:', error)
     const errorMessage = error instanceof Error ? error.message : 'حدث خطأ غير متوقع'
     return NextResponse.json({ error: errorMessage }, { status: 500 })
+  } finally {
+    // 🚨 تحرير القفل دائماً - مهم جداً لمنع deadlock
+    const lock = userSaveLocks.get(user.id)
+    if (lock) {
+      lock.resolve()
+      // إزالة القفل بعد فترة قصيرة للسماح بالطلبات التالية
+      setTimeout(() => {
+        userSaveLocks.delete(user.id)
+      }, 1000)
+    }
   }
 }
