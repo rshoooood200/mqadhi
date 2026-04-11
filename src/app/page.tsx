@@ -371,8 +371,16 @@ const defaultStores = [
   'بنده', 'كارفور', 'لولو هايبر', 'العزيزية', 'التميمي', 'دانوب', 'الراشد', 'ع-extra', 'نستو', 'أسواقنا', 'النهدي'
 ]
 
-// توليد معرف فريد
-const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
+// توليد معرف فريد بصيغة cuid متوافقة مع Prisma
+const generateId = () => {
+  // Prisma cuid: يبدأ بـ 'c' + 25 حرف (أرقام وأحرف صغيرة)
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let id = 'c'
+  for (let i = 0; i < 24; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return id
+}
 
 export default function Home() {
   // حالات التطبيق

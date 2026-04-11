@@ -247,9 +247,13 @@ export async function POST(request: NextRequest) {
           console.log('💾 حفظ', items.length, 'عناصر جديدة...')
           for (const item of items) {
             try {
+              // 🚨 مهم: استخدام ID من client للحفاظ على التطابق
+              // التحقق من صحة الـ ID (cuid format: يبدأ بـ 'c' و25 حرف)
+              const isValidCuid = item.id && /^c[a-z0-9]{24}$/.test(item.id)
+              
               await tx.item.create({
                 data: {
-                  // 🔧 لا نمرر ID - ندع Prisma يولد cuid صالح
+                  id: isValidCuid ? item.id : undefined, // 🔧 نستخدم ID من client إذا كان صالحاً
                   name: item.name,
                   category: item.category,
                   quantity: item.quantity || 1,
@@ -266,8 +270,36 @@ export async function POST(request: NextRequest) {
                   }
                 }
               })
-            } catch (itemError) {
-              console.error('❌ خطأ في حفظ العنصر:', item.name, itemError)
+            } catch (itemError: any) {
+              // 🚨 إذا فشل الحفظ بسبب تكرار ID، نحاول بدون ID
+              if (itemError?.code === 'P2002') {
+                console.log('⚠️ ID مكرر، إنشاء ID جديد:', item.name)
+                try {
+                  await tx.item.create({
+                    data: {
+                      // بدون ID - ندع Prisma يولد واحد جديد
+                      name: item.name,
+                      category: item.category,
+                      quantity: item.quantity || 1,
+                      notes: item.notes || '',
+                      isPurchased: item.isPurchased || false,
+                      image: item.image || null,
+                      userId: user.id,
+                      prices: {
+                        create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
+                          store: p.store,
+                          price: p.price,
+                          date: new Date(p.date)
+                        }))
+                      }
+                    }
+                  })
+                } catch (retryError) {
+                  console.error('❌ فشل الحفظ حتى مع ID جديد:', item.name, retryError)
+                }
+              } else {
+                console.error('❌ خطأ في حفظ العنصر:', item.name, itemError)
+              }
             }
           }
           console.log('✅ تم حفظ جميع العناصر')
