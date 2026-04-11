@@ -3152,7 +3152,10 @@ export default function Home() {
       createdAt: new Date().toISOString()
     }))
 
-    setItems(prev => [...prev, ...newItems])
+    // 📌 تحديث items و ref معاً
+    const updatedItems = [...itemsRef.current, ...newItems]
+    itemsRef.current = updatedItems
+    setItems(updatedItems)
 
     // إضافة الأسعار إلى تتبع الأسعار تلقائياً
     const newPriceHistory: Record<string, PriceEntry[]> = {}
@@ -3172,55 +3175,73 @@ export default function Home() {
     })
 
     // دمج الأسعار الجديدة مع القديمة وحفظها فوراً
+    // 📌 استخدام refs للبيانات
     if (Object.keys(newPriceHistory).length > 0) {
-      setPriceHistory(prev => {
-        const updated = { ...prev }
-        Object.entries(newPriceHistory).forEach(([key, prices]) => {
-          if (!updated[key]) {
-            updated[key] = []
+      const currentPriceHistory = priceHistoryRef.current
+      const updatedPriceHistory = { ...currentPriceHistory }
+      Object.entries(newPriceHistory).forEach(([key, prices]) => {
+        if (!updatedPriceHistory[key]) {
+          updatedPriceHistory[key] = []
+        }
+        prices.forEach(newPrice => {
+          const exists = updatedPriceHistory[key].some(p => p.store === newPrice.store && p.price === newPrice.price)
+          if (!exists) {
+            updatedPriceHistory[key] = [...updatedPriceHistory[key], newPrice]
           }
-          prices.forEach(newPrice => {
-            const exists = updated[key].some(p => p.store === newPrice.store && p.price === newPrice.price)
-            if (!exists) {
-              updated[key] = [...updated[key], newPrice]
-            }
-          })
         })
+      })
+      
+      // 📌 تحديث priceHistory و ref معاً
+      priceHistoryRef.current = updatedPriceHistory
+      setPriceHistory(updatedPriceHistory)
 
-        // حفظ فوري للبيانات على السيرفر
+      // حفظ فوري للبيانات على السيرفر - 📌 استخدام refs
+      if (isLoggedIn && isDataLoaded) {
         fetch('/api/sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            items: [...items, ...newItems],
-            familyMembers,
-            customStores,
-            priceHistory: updated,
-            budget: { monthlyBudget, spentAmount, startDate: budgetStartDate, shoppingTurn },
-            customCategories
+            items: updatedItems,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: updatedPriceHistory,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
           })
         }).then(() => {
           console.log('✅ تم حفظ الأسعار على السيرفر')
         }).catch(err => {
           console.error('خطأ في حفظ الأسعار:', err)
         })
-
-        return updated
-      })
+      }
     } else {
-      // حفظ الأغراض حتى لو لم تكن هناك أسعار
-      fetch('/api/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: [...items, ...newItems],
-          familyMembers,
-          customStores,
-          priceHistory,
-          budget: { monthlyBudget, spentAmount, startDate: budgetStartDate, shoppingTurn },
-          customCategories
+      // حفظ الأغراض حتى لو لم تكن هناك أسعار - 📌 استخدام refs
+      if (isLoggedIn && isDataLoaded) {
+        fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: updatedItems,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
         })
-      })
+      }
     }
 
     setScannedItems([])
