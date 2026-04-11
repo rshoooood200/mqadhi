@@ -4,7 +4,7 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.7.0'
+export const APP_VERSION = '1.7.1'
 
 
 // تاريخ الإصدار
@@ -12,6 +12,15 @@ export const RELEASE_DATE = '2026-04-11'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.7.1',
+    date: '2026-04-11',
+    changes: [
+      '🔧 إصلاح: تحديث refs مع state في جميع العمليات',
+      '🐛 إصلاح: حفظ الأغراض من الـ PWA modal',
+      '✅ تحسين موثوقية حفظ البيانات',
+    ]
+  },
   {
     version: '1.7.0',
     date: '2026-04-11',

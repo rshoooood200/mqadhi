@@ -4679,6 +4679,7 @@ export default function Home() {
                             }
                           : item
                       )
+                      itemsRef.current = updatedItems // 📌 تحديث ref
                       setItems(updatedItems)
                       setEditingItem(null)
                       setItemName('')
@@ -4716,7 +4717,9 @@ export default function Home() {
                         prices: latestPrice ? [latestPrice] : [],
                         createdAt: new Date().toISOString()
                       }
-                      setItems(prev => [...prev, newItem])
+                      const newItems = [...items, newItem]
+                      itemsRef.current = newItems // 📌 تحديث ref
+                      setItems(newItems)
                       setItemName('')
                       setItemCategory('dairy')
                       setItemQuantity('')
@@ -4743,6 +4746,7 @@ export default function Home() {
                             }
                           : item
                       )
+                      itemsRef.current = updatedItems // 📌 تحديث ref
                       setItems(updatedItems)
                       setEditingItem(null)
                       setItemName('')
@@ -4779,7 +4783,9 @@ export default function Home() {
                         prices: latestPrice ? [latestPrice] : [],
                         createdAt: new Date().toISOString()
                       }
-                      setItems(prev => [...prev, newItem])
+                      const newItems = [...items, newItem]
+                      itemsRef.current = newItems // 📌 تحديث ref
+                      setItems(newItems)
                       setItemName('')
                       setItemCategory('dairy')
                       setItemQuantity('')
