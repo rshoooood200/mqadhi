@@ -177,10 +177,15 @@ export async function POST(request: NextRequest) {
   // التحقق مما إذا كانت items محددة (حتى لو فارغة)
   const itemsSpecified = items !== undefined
   const hasItems = items && items.length > 0
+  const familyMembersSpecified = familyMembers !== undefined
   const hasFamilyMembers = familyMembers && familyMembers.length > 0
+  const customStoresSpecified = customStores !== undefined
   const hasCustomStores = customStores && customStores.length > 0
+  const priceHistorySpecified = priceHistory !== undefined
   const hasPriceHistory = priceHistory && Object.keys(priceHistory).length > 0
+  const customCategoriesSpecified = customCategories !== undefined
   const hasCustomCategories = customCategories && customCategories.length > 0
+  const savedProductNamesSpecified = savedProductNames !== undefined
   const hasSavedProductNames = savedProductNames && savedProductNames.length > 0
   const hasBudget = budget && (budget.monthlyBudget > 0 || budget.spentAmount > 0 || budget.shoppingTurn)
 
@@ -234,102 +239,121 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 📌 إذا تم تحديد items (حتى لو فارغة)، نحذف القديمة ونحفظ الجديدة
+    // 🚨 حفظ/تحديث العناصر مع حماية قوية من الحذف غير المقصود
     // 🚨 استخدام transaction لضمان atomicity
     if (itemsSpecified) {
-      await prisma.$transaction(async (tx) => {
-        // حذف العناصر القديمة
-        console.log('🗑️ حذف العناصر القديمة...')
-        await tx.item.deleteMany({ where: { userId: user.id } })
+      // التحقق من البيانات الحالية على السيرفر
+      const currentItemsCount = await prisma.item.count({ where: { userId: user.id } })
+      
+      // 🛡️ حماية: إذا كان هناك عناصر على السيرفر ولا توجد بيانات جديدة، لا تحذف!
+      // هذا يمنع الحذف غير المقصود بسبب race condition أو خطأ في إرسال البيانات
+      if (currentItemsCount > 0 && !hasItems) {
+        console.log(`⚠️ حماية items: يوجد ${currentItemsCount} عنصر على السيرفر ولا توجد بيانات جديدة - تم تخطي الحذف`)
+      } else {
+        await prisma.$transaction(async (tx) => {
+          // حذف العناصر القديمة فقط إذا كانت هناك بيانات جديدة
+          console.log('🗑️ حذف العناصر القديمة...')
+          await tx.item.deleteMany({ where: { userId: user.id } })
 
-        // حفظ العناصر الجديدة (إذا وجدت)
-        if (hasItems) {
-          console.log('💾 حفظ', items.length, 'عناصر جديدة...')
-          for (const item of items) {
-            try {
-              // 🚨 مهم: استخدام ID من client للحفاظ على التطابق
-              // التحقق من صحة الـ ID (cuid format: يبدأ بـ 'c' و25 حرف)
-              const isValidCuid = item.id && /^c[a-z0-9]{24}$/.test(item.id)
-              
-              await tx.item.create({
-                data: {
-                  id: isValidCuid ? item.id : undefined, // 🔧 نستخدم ID من client إذا كان صالحاً
-                  name: item.name,
-                  category: item.category,
-                  quantity: item.quantity || 1,
-                  notes: item.notes || '',
-                  isPurchased: item.isPurchased || false,
-                  image: item.image || null,
-                  userId: user.id,
-                  prices: {
-                    create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
-                      store: p.store,
-                      price: p.price,
-                      date: new Date(p.date)
-                    }))
-                  }
-                }
-              })
-            } catch (itemError: any) {
-              // 🚨 إذا فشل الحفظ بسبب تكرار ID، نحاول بدون ID
-              if (itemError?.code === 'P2002') {
-                console.log('⚠️ ID مكرر، إنشاء ID جديد:', item.name)
-                try {
-                  await tx.item.create({
-                    data: {
-                      // بدون ID - ندع Prisma يولد واحد جديد
-                      name: item.name,
-                      category: item.category,
-                      quantity: item.quantity || 1,
-                      notes: item.notes || '',
-                      isPurchased: item.isPurchased || false,
-                      image: item.image || null,
-                      userId: user.id,
-                      prices: {
-                        create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
-                          store: p.store,
-                          price: p.price,
-                          date: new Date(p.date)
-                        }))
-                      }
+          // حفظ العناصر الجديدة (إذا وجدت)
+          if (hasItems) {
+            console.log('💾 حفظ', items.length, 'عناصر جديدة...')
+            for (const item of items) {
+              try {
+                // 🚨 مهم: استخدام ID من client للحفاظ على التطابق
+                // التحقق من صحة الـ ID (cuid format: يبدأ بـ 'c' و25 حرف)
+                const isValidCuid = item.id && /^c[a-z0-9]{24}$/.test(item.id)
+                
+                await tx.item.create({
+                  data: {
+                    id: isValidCuid ? item.id : undefined, // 🔧 نستخدم ID من client إذا كان صالحاً
+                    name: item.name,
+                    category: item.category,
+                    quantity: item.quantity || 1,
+                    notes: item.notes || '',
+                    isPurchased: item.isPurchased || false,
+                    image: item.image || null,
+                    userId: user.id,
+                    prices: {
+                      create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
+                        store: p.store,
+                        price: p.price,
+                        date: new Date(p.date)
+                      }))
                     }
-                  })
-                } catch (retryError) {
-                  console.error('❌ فشل الحفظ حتى مع ID جديد:', item.name, retryError)
+                  }
+                })
+              } catch (itemError: any) {
+                // 🚨 إذا فشل الحفظ بسبب تكرار ID، نحاول بدون ID
+                if (itemError?.code === 'P2002') {
+                  console.log('⚠️ ID مكرر، إنشاء ID جديد:', item.name)
+                  try {
+                    await tx.item.create({
+                      data: {
+                        // بدون ID - ندع Prisma يولد واحد جديد
+                        name: item.name,
+                        category: item.category,
+                        quantity: item.quantity || 1,
+                        notes: item.notes || '',
+                        isPurchased: item.isPurchased || false,
+                        image: item.image || null,
+                        userId: user.id,
+                        prices: {
+                          create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
+                            store: p.store,
+                            price: p.price,
+                            date: new Date(p.date)
+                          }))
+                        }
+                      }
+                    })
+                  } catch (retryError) {
+                    console.error('❌ فشل الحفظ حتى مع ID جديد:', item.name, retryError)
+                  }
+                } else {
+                  console.error('❌ خطأ في حفظ العنصر:', item.name, itemError)
                 }
-              } else {
-                console.error('❌ خطأ في حفظ العنصر:', item.name, itemError)
               }
             }
+            console.log('✅ تم حفظ جميع العناصر')
+          } else {
+            console.log('📝 لا توجد عناصر للحفظ')
           }
-          console.log('✅ تم حفظ جميع العناصر')
-        } else {
-          console.log('📝 لا توجد عناصر للحفظ')
-        }
-      }, {
-        // 🚨 إعدادات الـ transaction
-        maxWait: 5000, // أقصى انتظار للحصول على lock
-        timeout: 30000, // timeout للعملية
-      })
+        }, {
+          // 🚨 إعدادات الـ transaction
+          maxWait: 5000, // أقصى انتظار للحصول على lock
+          timeout: 30000, // timeout للعملية
+        })
+      }
     }
 
-    // حفظ/تحديث أفراد العائلة
-    if (familyMembers !== undefined) {
-      console.log('👥 حفظ', familyMembers?.length || 0, 'أفراد العائلة')
-      await prisma.familyMember.deleteMany({ where: { userId: user.id } })
-      if (hasFamilyMembers) {
-        try {
-          await prisma.familyMember.createMany({
-            data: familyMembers.map((m: { id: string; name: string; avatar: string }) => ({
-              id: m.id,
-              name: m.name,
-              avatar: m.avatar || '👤',
-              userId: user.id
-            }))
-          })
-          console.log('✅ تم حفظ أفراد العائلة')
-        } catch (fmError) {
-          console.error('❌ خطأ في حفظ أفراد العائلة:', fmError)
+    // 🚨 حفظ/تحديث أفراد العائلة مع حماية قوية من الحذف غير المقصود
+    if (familyMembersSpecified) {
+      const currentFamilyMembersCount = await prisma.familyMember.count({ where: { userId: user.id } })
+      
+      // 🛡️ حماية: إذا كان هناك أفراد على السيرفر ولا توجد بيانات جديدة، لا تحذف!
+      if (currentFamilyMembersCount > 0 && !hasFamilyMembers) {
+        console.log(`⚠️ حماية familyMembers: يوجد ${currentFamilyMembersCount} أفراد على السيرفر ولا توجد بيانات جديدة - تم تخطي الحذف`)
+      } else {
+        if (hasFamilyMembers || currentFamilyMembersCount === 0) {
+          console.log('👥 حفظ', familyMembers?.length || 0, 'أفراد العائلة')
+          await prisma.familyMember.deleteMany({ where: { userId: user.id } })
+          
+          if (hasFamilyMembers) {
+            try {
+              await prisma.familyMember.createMany({
+                data: familyMembers.map((m: { id: string; name: string; avatar: string }) => ({
+                  id: m.id,
+                  name: m.name,
+                  avatar: m.avatar || '👤',
+                  userId: user.id
+                }))
+              })
+              console.log('✅ تم حفظ أفراد العائلة')
+            } catch (fmError) {
+              console.error('❌ خطأ في حفظ أفراد العائلة:', fmError)
+            }
+          }
         }
       }
     }
@@ -347,24 +371,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // حفظ/تحديث سجل الأسعار
-    if (priceHistory !== undefined) {
-      await prisma.priceHistoryRecord.deleteMany({ where: { userId: user.id } })
-      if (hasPriceHistory) {
-        const records: { productName: string; store: string; price: number; date: Date; userId: string }[] = []
-        for (const [productName, prices] of Object.entries(priceHistory)) {
-          for (const p of (prices as { store: string; price: number; date: string }[])) {
-            records.push({
-              productName,
-              store: p.store,
-              price: p.price,
-              date: new Date(p.date),
-              userId: user.id
-            })
+    // 🚨 حفظ/تحديث سجل الأسعار مع حماية قوية من الحذف غير المقصود
+    if (priceHistorySpecified) {
+      // التحقق من البيانات الحالية على السيرفر
+      const currentPriceHistoryCount = await prisma.priceHistoryRecord.count({ where: { userId: user.id } })
+      
+      // 🛡️ حماية: إذا كان هناك بيانات على السيرفر ولا توجد بيانات جديدة، لا تحذف!
+      // هذا يمنع الحذف غير المقصود بسبب race condition أو خطأ في إرسال البيانات
+      if (currentPriceHistoryCount > 0 && !hasPriceHistory) {
+        console.log(`⚠️ حماية priceHistory: يوجد ${currentPriceHistoryCount} سجل على السيرفر ولا توجد بيانات جديدة - تم تخطي الحذف`)
+      } else {
+        // فقط احذف إذا كانت هناك بيانات جديدة صالحة للحفظ
+        if (hasPriceHistory || currentPriceHistoryCount === 0) {
+          await prisma.priceHistoryRecord.deleteMany({ where: { userId: user.id } })
+          
+          if (hasPriceHistory) {
+            const records: { productName: string; store: string; price: number; date: Date; userId: string }[] = []
+            for (const [productName, prices] of Object.entries(priceHistory)) {
+              for (const p of (prices as { store: string; price: number; date: string }[])) {
+                records.push({
+                  productName,
+                  store: p.store,
+                  price: p.price,
+                  date: new Date(p.date),
+                  userId: user.id
+                })
+              }
+            }
+            if (records.length > 0) {
+              await prisma.priceHistoryRecord.createMany({ data: records })
+              console.log(`✅ تم حفظ ${records.length} سجل أسعار`)
+            }
           }
-        }
-        if (records.length > 0) {
-          await prisma.priceHistoryRecord.createMany({ data: records })
         }
       }
     }
