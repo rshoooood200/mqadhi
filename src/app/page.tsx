@@ -480,6 +480,8 @@ export default function Home() {
   const [itemName, setItemName] = useState('')
   const [itemCategory, setItemCategory] = useState('dairy')
   const [itemQuantity, setItemQuantity] = useState<number | ''>('')
+  const [itemPrice, setItemPrice] = useState<number | ''>('') // السعر عند الإضافة
+  const [itemPriceStore, setItemPriceStore] = useState<string>('') // المتجر
   const [itemNotes, setItemNotes] = useState('')
   const [itemImage, setItemImage] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
@@ -1797,6 +1799,31 @@ export default function Home() {
       const productKey = trimmedName.toLowerCase()
       const savedPrices = priceHistoryRef.current[productKey] || []
 
+      // 📌 إذا أضاف المستخدم سعراً جديداً، أضفه للأسعار
+      let initialPrices = [...savedPrices]
+      if (itemPrice && itemPrice > 0) {
+        const storeName = itemPriceStore || 'السعر المدخل'
+        const newPrice: PriceEntry = {
+          store: storeName,
+          price: itemPrice,
+          date: new Date().toISOString()
+        }
+        initialPrices.push(newPrice)
+
+        // 📌 تحديث priceHistory أيضاً
+        const newPriceHistory = { ...priceHistoryRef.current }
+        newPriceHistory[productKey] = initialPrices
+        priceHistoryRef.current = newPriceHistory
+        setPriceHistory(newPriceHistory)
+
+        // 📌 إضافة المتجر للمتاجر المخصصة إذا لم يكن موجوداً
+        if (itemPriceStore && !allStores.includes(itemPriceStore) && !defaultStores.includes(itemPriceStore)) {
+          const newCustomStores = [...customStoresRef.current, itemPriceStore]
+          customStoresRef.current = newCustomStores
+          setCustomStores(newCustomStores)
+        }
+      }
+
       const newItem: Item = {
         id: generateId(),
         name: trimmedName,
@@ -1805,7 +1832,8 @@ export default function Home() {
         notes: itemNotes,
         isPurchased: false,
         image: itemImage,
-        prices: savedPrices,
+        prices: initialPrices,
+        selectedStore: itemPrice && itemPrice > 0 ? (itemPriceStore || 'السعر المدخل') : undefined,
         createdAt: new Date().toISOString()
       }
       updatedItems = [...currentItems, newItem]
@@ -1819,6 +1847,8 @@ export default function Home() {
     setItemName('')
     setItemCategory('dairy')
     setItemQuantity('')
+    setItemPrice('')
+    setItemPriceStore('')
     setItemNotes('')
     setItemImage(null)
     setClassifiedCategory(null)
@@ -4841,6 +4871,55 @@ export default function Home() {
               />
             </div>
 
+            {/* السعر والمتجر */}
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '12px' }}>
+              <div style={{ flex: '1' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#475569', fontSize: '14px' }}>
+                  السعر (اختياري)
+                </label>
+                <input
+                  type="number"
+                  value={itemPrice}
+                  onChange={(e) => setItemPrice(e.target.value === '' ? '' : parseFloat(e.target.value) || '')}
+                  min="0"
+                  step="0.01"
+                  placeholder="مثال: 15.50"
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '16px',
+                    backgroundColor: 'white'
+                  }}
+                />
+              </div>
+              <div style={{ flex: '1' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#475569', fontSize: '14px' }}>
+                  المتجر (اختياري)
+                </label>
+                <select
+                  value={itemPriceStore}
+                  onChange={(e) => setItemPriceStore(e.target.value)}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    border: '2px solid #e2e8f0',
+                    fontSize: '16px',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="">اختر المتجر</option>
+                  {allStores.map(store => (
+                    <option key={store} value={store}>{store}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* الملاحظات */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#475569', fontSize: '14px' }}>
@@ -4868,137 +4947,10 @@ export default function Home() {
             {/* أزرار الإضافة والإلغاء */}
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
-                onClick={() => {
-                  if (itemName && itemName.trim()) {
-                    if (editingItem) {
-                      // وضع التعديل - تحديث المنتج الموجود
-                      const updatedItems = items.map(item =>
-                        item.id === editingItem.id
-                          ? {
-                              ...item,
-                              name: itemName.trim(),
-                              category: itemCategory,
-                              quantity: itemQuantity || 1,
-                              notes: itemNotes.trim(),
-                              image: itemImage
-                            }
-                          : item
-                      )
-                      itemsRef.current = updatedItems // 📌 تحديث ref
-                      setItems(updatedItems)
-                      setEditingItem(null)
-                      setItemName('')
-                      setItemCategory('dairy')
-                      setItemQuantity('')
-                      setItemNotes('')
-                      setItemImage(null)
-                      setIsModalOpen(false)
-                    } else {
-                      // وضع الإضافة - التحقق من وجود المنتج مسبقاً
-                      const existingItem = items.find(item =>
-                        item.name.toLowerCase().trim() === itemName.toLowerCase().trim()
-                      )
-
-                      if (existingItem) {
-                        showAlertMessage(`⚠️ "${itemName}" موجود مسبقاً في القائمة!`)
-                        return
-                      }
-
-                      // استرجاع السعر السابق من تتبع الأسعار
-                      const productKey = itemName.toLowerCase().trim()
-                      const previousPrices = priceHistory[productKey] || []
-                      const latestPrice = previousPrices.length > 0
-                        ? previousPrices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-                        : null
-
-                      const newItem: Item = {
-                        id: generateId(),
-                        name: itemName.trim(),
-                        category: itemCategory,
-                        quantity: itemQuantity || 1,
-                        notes: itemNotes.trim(),
-                        isPurchased: false,
-                        image: itemImage,
-                        prices: latestPrice ? [latestPrice] : [],
-                        createdAt: new Date().toISOString()
-                      }
-                      const newItems = [...items, newItem]
-                      itemsRef.current = newItems // 📌 تحديث ref
-                      setItems(newItems)
-                      setItemName('')
-                      setItemCategory('dairy')
-                      setItemQuantity('')
-                      setItemNotes('')
-                      setItemImage(null)
-                      setIsModalOpen(false)
-                    }
-                  }
-                }}
+                onClick={handleSubmit}
                 onTouchEnd={(e) => {
                   e.preventDefault()
-                  if (itemName && itemName.trim()) {
-                    if (editingItem) {
-                      // وضع التعديل
-                      const updatedItems = items.map(item =>
-                        item.id === editingItem.id
-                          ? {
-                              ...item,
-                              name: itemName.trim(),
-                              category: itemCategory,
-                              quantity: itemQuantity || 1,
-                              notes: itemNotes.trim(),
-                              image: itemImage
-                            }
-                          : item
-                      )
-                      itemsRef.current = updatedItems // 📌 تحديث ref
-                      setItems(updatedItems)
-                      setEditingItem(null)
-                      setItemName('')
-                      setItemCategory('dairy')
-                      setItemQuantity('')
-                      setItemNotes('')
-                      setItemImage(null)
-                      setIsModalOpen(false)
-                    } else {
-                      // وضع الإضافة
-                      const existingItem = items.find(item =>
-                        item.name.toLowerCase().trim() === itemName.toLowerCase().trim()
-                      )
-
-                      if (existingItem) {
-                        showAlertMessage(`⚠️ "${itemName}" موجود مسبقاً في القائمة!`)
-                        return
-                      }
-
-                      const productKey = itemName.toLowerCase().trim()
-                      const previousPrices = priceHistory[productKey] || []
-                      const latestPrice = previousPrices.length > 0
-                        ? previousPrices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-                        : null
-
-                      const newItem: Item = {
-                        id: generateId(),
-                        name: itemName.trim(),
-                        category: itemCategory,
-                        quantity: itemQuantity || 1,
-                        notes: itemNotes.trim(),
-                        isPurchased: false,
-                        image: itemImage,
-                        prices: latestPrice ? [latestPrice] : [],
-                        createdAt: new Date().toISOString()
-                      }
-                      const newItems = [...items, newItem]
-                      itemsRef.current = newItems // 📌 تحديث ref
-                      setItems(newItems)
-                      setItemName('')
-                      setItemCategory('dairy')
-                      setItemQuantity('')
-                      setItemNotes('')
-                      setItemImage(null)
-                      setIsModalOpen(false)
-                    }
-                  }
+                  handleSubmit(e)
                 }}
                 style={{
                   flex: 1,
