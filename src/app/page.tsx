@@ -19,6 +19,7 @@ interface Item {
   isPurchased: boolean
   image: string | null
   prices: PriceEntry[]
+  selectedStore?: string // المتجر المختار للسعر النشط
   createdAt: string
   order?: number
 }
@@ -394,6 +395,8 @@ export default function Home() {
   const [isExporting, setIsExporting] = useState(false)
   const [isPriceModalOpen, setIsPriceModalOpen] = useState(false)
   const [selectedItemForPrice, setSelectedItemForPrice] = useState<Item | null>(null)
+  const [isStoresModalOpen, setIsStoresModalOpen] = useState(false) // نافذة إدارة المتاجر
+  const [storeToDelete, setStoreToDelete] = useState<string | null>(null) // المتجر المراد حذفه
   const [isUserModalOpen, setIsUserModalOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
   const [familyMembers, setFamilyMembers] = useState<UserProfile[]>([])
@@ -1954,9 +1957,9 @@ export default function Home() {
     const item = currentItems.find(i => i.id === id)
     if (!item) return
     
-    const itemPrice = item.prices && item.prices.length > 0 
-      ? Math.min(...item.prices.map(p => p.price)) * item.quantity
-      : 0
+    // 📌 استخدام السعر المحدد (أو الأقل إذا لم يُحدد)
+    const activePrice = getActivePrice(item)
+    const itemPrice = activePrice ? activePrice.price * item.quantity : 0
     
     let newSpentAmount = spentAmountRef.current
     if (!item.isPurchased && itemPrice > 0) {
@@ -2095,9 +2098,9 @@ export default function Home() {
   const missingItems = items.filter(i => !i.isPurchased).length
   const purchasedItems = items.filter(i => i.isPurchased).length
   const totalPrice = items.reduce((sum, item) => {
-    if (item.prices && item.prices.length > 0) {
-      const minPrice = Math.min(...item.prices.map(p => p.price))
-      return sum + (minPrice * item.quantity)
+    const activePrice = getActivePrice(item)
+    if (activePrice) {
+      return sum + (activePrice.price * item.quantity)
     }
     return sum
   }, 0)
@@ -2144,10 +2147,10 @@ export default function Home() {
 
           let priceText = '-'
           let totalText = '-'
-          if (item.prices && item.prices.length > 0) {
-            const bestPriceValue = Math.min(...item.prices.map(p => p.price))
-            priceText = `${bestPriceValue.toFixed(2)} ر.س`
-            totalText = `${(bestPriceValue * item.quantity).toFixed(2)} ر.س`
+          const activePrice = getActivePrice(item)
+          if (activePrice) {
+            priceText = `${activePrice.price.toFixed(2)} ر.س (${activePrice.store})`
+            totalText = `${(activePrice.price * item.quantity).toFixed(2)} ر.س`
           }
 
           const notesText = item.notes ? item.notes : '-'
@@ -2401,6 +2404,146 @@ export default function Home() {
         })
       } catch (error) {
         console.error('Delete price save error:', error)
+      }
+    }
+  }
+
+  // 🏪 الحصول على السعر النشط للمنتج
+  const getActivePrice = (item: Item): { price: number; store: string } | null => {
+    if (!item.prices || item.prices.length === 0) return null
+    
+    // إذا كان هناك متجر محدد، ابحث عن سعره
+    if (item.selectedStore) {
+      const selectedPrice = item.prices.find(p => p.store === item.selectedStore)
+      if (selectedPrice) return { price: selectedPrice.price, store: selectedPrice.store }
+    }
+    
+    // وإلا، أرجع أقل سعر
+    const minPrice = item.prices.reduce((min, p) => p.price < min.price ? p : min, item.prices[0])
+    return { price: minPrice.price, store: minPrice.store }
+  }
+
+  // 🔄 تغيير المتجر المختار للمنتج
+  const selectItemStore = async (itemId: string, storeName: string) => {
+    const updatedItems = itemsRef.current.map(it => {
+      if (it.id === itemId) {
+        return { ...it, selectedStore: storeName }
+      }
+      return it
+    })
+    itemsRef.current = updatedItems
+    setItems(updatedItems)
+    
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: updatedItems,
+            familyMembers: familyMembersRef.current,
+            customStores: customStoresRef.current,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+      } catch (error) {
+        console.error('Select store save error:', error)
+      }
+    }
+  }
+
+  // 🗑️ حذف متجر مخصص
+  const deleteCustomStore = async (storeName: string) => {
+    // التحقق من عدم استخدام المتجر في أي منتج
+    const itemsUsingStore = itemsRef.current.filter(item => 
+      item.prices?.some(p => p.store === storeName)
+    )
+    
+    if (itemsUsingStore.length > 0) {
+      showAlertMessage(`⚠️ لا يمكن حذف "${storeName}" - مستخدم في ${itemsUsingStore.length} منتج`)
+      return
+    }
+    
+    // حذف المتجر
+    const updatedStores = customStoresRef.current.filter(s => s !== storeName)
+    customStoresRef.current = updatedStores
+    setCustomStores(updatedStores)
+    
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: itemsRef.current,
+            familyMembers: familyMembersRef.current,
+            customStores: updatedStores,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+        showAlertMessage(`✅ تم حذف "${storeName}" من المتاجر`)
+      } catch (error) {
+        console.error('Delete store error:', error)
+      }
+    }
+    
+    setStoreToDelete(null)
+  }
+
+  // ➕ إضافة متجر جديد
+  const addCustomStore = async (storeName: string) => {
+    if (!storeName.trim()) return
+    if (allStores.includes(storeName.trim())) {
+      showAlertMessage('⚠️ هذا المتجر موجود بالفعل')
+      return
+    }
+    
+    const updatedStores = [...customStoresRef.current, storeName.trim()]
+    customStoresRef.current = updatedStores
+    setCustomStores(updatedStores)
+    
+    // 🚨 حفظ فوري على السيرفر
+    if (isLoggedIn && isDataLoaded) {
+      try {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: itemsRef.current,
+            familyMembers: familyMembersRef.current,
+            customStores: updatedStores,
+            priceHistory: priceHistoryRef.current,
+            budget: {
+              monthlyBudget: monthlyBudgetRef.current,
+              spentAmount: spentAmountRef.current,
+              startDate: budgetStartDateRef.current,
+              shoppingTurn: shoppingTurnRef.current
+            },
+            customCategories: customCategoriesRef.current,
+            savedProductNames: savedProductNamesRef.current
+          })
+        })
+        showAlertMessage(`✅ تم إضافة "${storeName}" إلى المتاجر`)
+      } catch (error) {
+        console.error('Add store error:', error)
       }
     }
   }
@@ -2761,9 +2904,7 @@ export default function Home() {
 
   // الحصول على أفضل سعر
   const getBestPrice = (item: Item) => {
-    if (!item.prices || item.prices.length === 0) return null
-    const best = item.prices.reduce((min, p) => p.price < min.price ? p : min, item.prices[0])
-    return best
+    return getActivePrice(item)
   }
 
   // إنشاء تصنيف مخصص جديد
@@ -4025,23 +4166,37 @@ export default function Home() {
                                   
                                   {item.prices && item.prices.length > 0 && (
                                     <div className="mt-3 pt-3 border-t border-slate-100">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs text-slate-500">الأسعار ({item.prices.length})</span>
+                                        <button
+                                          onClick={() => { setSelectedItemForPrice(item); setIsPriceModalOpen(true); }}
+                                          className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                                          suppressHydrationWarning
+                                        >
+                                          إدارة الأسعار
+                                        </button>
+                                      </div>
                                       <div className="flex flex-wrap gap-2">
-                                        {item.prices.map((price, idx) => (
-                                          <div 
-                                            key={idx}
-                                            className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg text-xs"
-                                          >
-                                            <span className="font-medium">{price.store}:</span>
-                                            <span className="text-emerald-600">{price.price.toFixed(2)} ر.س</span>
+                                        {item.prices.map((price, idx) => {
+                                          const isActive = item.selectedStore === price.store || 
+                                            (!item.selectedStore && idx === 0)
+                                          return (
                                             <button
-                                              onClick={() => deletePrice(item.id, idx)}
-                                              className="text-red-400 hover:text-red-600 mr-1"
+                                              key={idx}
+                                              onClick={() => selectItemStore(item.id, price.store)}
+                                              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all ${
+                                                isActive 
+                                                  ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500' 
+                                                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                              }`}
                                               suppressHydrationWarning
                                             >
-                                              ×
+                                              <span className="font-medium">{price.store}:</span>
+                                              <span className="font-bold">{price.price.toFixed(2)} ر.س</span>
+                                              {isActive && <span className="text-emerald-500">✓</span>}
                                             </button>
-                                          </div>
-                                        ))}
+                                          )
+                                        })}
                                       </div>
                                     </div>
                                   )}
@@ -4950,93 +5105,289 @@ export default function Home() {
         </div>
       )}
 
-      {/* نافذة إضافة سعر */}
+      {/* نافذة إدارة الأسعار المحسّنة */}
       {isPriceModalOpen && selectedItemForPrice && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setIsPriceModalOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
-              <h2 className="text-xl font-bold text-slate-800 mb-2">
-                💰 إضافة سعر: {selectedItemForPrice.name}
-              </h2>
+              {/* العنوان */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  💰 إدارة الأسعار
+                </h2>
+                <button
+                  onClick={() => setIsStoresModalOpen(true)}
+                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+                  suppressHydrationWarning
+                >
+                  🏪 إدارة المتاجر
+                </button>
+              </div>
               
-              <div className="space-y-4 mt-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">المتجر</label>
-                  {!showCustomStoreInput ? (
-                    <select
-                      value={newPriceStore}
-                      onChange={(e) => {
-                        if (e.target.value === '__custom__') {
-                          setShowCustomStoreInput(true)
-                        } else {
-                          setNewPriceStore(e.target.value)
-                        }
-                      }}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 bg-white"
-                    >
-                      <option value="">اختر المتجر</option>
-                      {allStores.map(store => (
-                        <option key={store} value={store}>{store}</option>
-                      ))}
-                      <option value="__custom__">➕ متجر جديد...</option>
-                    </select>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={customStoreName}
-                        onChange={(e) => setCustomStoreName(e.target.value)}
-                        className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700"
-                        placeholder="اسم المتجر"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => { setShowCustomStoreInput(false); setCustomStoreName(''); }}
-                        className="px-3 py-2 text-slate-400 hover:text-slate-600"
-                        suppressHydrationWarning
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
+              {/* اسم المنتج */}
+              <div className="bg-slate-50 rounded-xl p-3 mb-4">
+                <span className="text-slate-600 text-sm">المنتج:</span>
+                <span className="font-medium text-slate-800 mr-2">{selectedItemForPrice.name}</span>
+              </div>
+              
+              {/* الأسعار الحالية */}
+              {selectedItemForPrice.prices && selectedItemForPrice.prices.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-slate-700 mb-2">الأسعار المسجلة:</h3>
+                  <div className="space-y-2">
+                    {selectedItemForPrice.prices.map((price, idx) => {
+                      const isSelected = selectedItemForPrice.selectedStore === price.store || 
+                        (!selectedItemForPrice.selectedStore && idx === 0)
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                            isSelected ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => selectItemStore(selectedItemForPrice.id, price.store)}
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'
+                              }`}
+                              suppressHydrationWarning
+                            >
+                              {isSelected && <span className="text-white text-xs">✓</span>}
+                            </button>
+                            <div>
+                              <span className="font-medium text-slate-800">{price.store}</span>
+                              <span className="text-emerald-600 font-bold mr-2">{price.price.toFixed(2)} ر.س</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => deletePrice(selectedItemForPrice.id, idx)}
+                            className="text-red-400 hover:text-red-600 p-1"
+                            suppressHydrationWarning
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">السعر (ر.س)</label>
-                  <input
-                    type="number"
-                    value={newPriceAmount}
-                    onChange={(e) => setNewPriceAmount(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700"
-                    placeholder="0.00"
-                    step="0.01"
-                  />
-                </div>
-                
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={handleAddPrice}
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-medium transition-colors"
-                    suppressHydrationWarning
-                  >
-                    إضافة السعر
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsPriceModalOpen(false)
-                      setSelectedItemForPrice(null)
-                      setNewPriceStore('')
-                      setNewPriceAmount('')
-                      setShowCustomStoreInput(false)
-                      setCustomStoreName('')
-                    }}
-                    className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-                    suppressHydrationWarning
-                  >
-                    إلغاء
-                  </button>
+              )}
+              
+              {/* إضافة سعر جديد */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium text-slate-700 mb-3">إضافة سعر جديد:</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">المتجر</label>
+                    {!showCustomStoreInput ? (
+                      <div className="flex gap-2">
+                        <select
+                          value={newPriceStore}
+                          onChange={(e) => {
+                            if (e.target.value === '__custom__') {
+                              setShowCustomStoreInput(true)
+                            } else {
+                              setNewPriceStore(e.target.value)
+                            }
+                          }}
+                          className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 bg-white"
+                        >
+                          <option value="">اختر المتجر</option>
+                          {allStores.map(store => (
+                            <option key={store} value={store}>{store}</option>
+                          ))}
+                          <option value="__custom__">➕ متجر جديد...</option>
+                        </select>
+                        <button
+                          onClick={() => setIsStoresModalOpen(true)}
+                          className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600"
+                          title="إدارة المتاجر"
+                          suppressHydrationWarning
+                        >
+                          ⚙️
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={customStoreName}
+                          onChange={(e) => setCustomStoreName(e.target.value)}
+                          className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700"
+                          placeholder="اسم المتجر الجديد"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setShowCustomStoreInput(false); setCustomStoreName(''); }}
+                          className="px-3 py-2 text-slate-400 hover:text-slate-600"
+                          suppressHydrationWarning
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1">السعر (ر.س)</label>
+                    <input
+                      type="number"
+                      value={newPriceAmount}
+                      onChange={(e) => setNewPriceAmount(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700"
+                      placeholder="0.00"
+                      step="0.01"
+                    />
+                  </div>
                 </div>
               </div>
+              
+              {/* أزرار الإجراءات */}
+              <div className="flex gap-3 pt-4 mt-4 border-t">
+                <button
+                  onClick={handleAddPrice}
+                  disabled={!newPriceStore && !customStoreName.trim()}
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white py-3 rounded-xl font-medium transition-colors"
+                  suppressHydrationWarning
+                >
+                  ➕ إضافة السعر
+                </button>
+                <button
+                  onClick={() => {
+                    setIsPriceModalOpen(false)
+                    setSelectedItemForPrice(null)
+                    setNewPriceStore('')
+                    setNewPriceAmount('')
+                    setShowCustomStoreInput(false)
+                    setCustomStoreName('')
+                  }}
+                  className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                  suppressHydrationWarning
+                >
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* نافذة إدارة المتاجر */}
+      {isStoresModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4" onClick={() => setIsStoresModalOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                🏪 إدارة المتاجر
+              </h2>
+              
+              {/* إضافة متجر جديد */}
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text"
+                  id="newStoreInput"
+                  placeholder="اسم المتجر الجديد"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const input = e.target as HTMLInputElement
+                      if (input.value.trim()) {
+                        addCustomStore(input.value.trim())
+                        input.value = ''
+                      }
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const input = document.getElementById('newStoreInput') as HTMLInputElement
+                    if (input?.value.trim()) {
+                      addCustomStore(input.value.trim())
+                      input.value = ''
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-medium"
+                  suppressHydrationWarning
+                >
+                  إضافة
+                </button>
+              </div>
+              
+              {/* المتاجر الافتراضية */}
+              <div className="mb-4">
+                <h3 className="text-xs text-slate-500 uppercase mb-2">المتاجر الافتراضية</h3>
+                <div className="flex flex-wrap gap-2">
+                  {defaultStores.map(store => (
+                    <span key={store} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-full text-sm">
+                      {store}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
+              {/* المتاجر المخصصة */}
+              {customStores.length > 0 && (
+                <div>
+                  <h3 className="text-xs text-slate-500 uppercase mb-2">المتاجر المخصصة</h3>
+                  <div className="space-y-2">
+                    {customStores.map(store => (
+                      <div key={store} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                        <span className="text-slate-700">{store}</span>
+                        <button
+                          onClick={() => setStoreToDelete(store)}
+                          className="text-red-400 hover:text-red-600 text-sm"
+                          suppressHydrationWarning
+                        >
+                          🗑️ حذف
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {customStores.length === 0 && (
+                <p className="text-slate-500 text-sm text-center py-4">لا توجد متاجر مخصصة</p>
+              )}
+              
+              {/* زر الإغلاق */}
+              <button
+                onClick={() => setIsStoresModalOpen(false)}
+                className="w-full mt-4 py-3 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                suppressHydrationWarning
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* تأكيد حذف المتجر */}
+      {storeToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-2">⚠️ تأكيد الحذف</h3>
+            <p className="text-slate-600 mb-4">
+              هل أنت متأكد من حذف متجر "{storeToDelete}"؟
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => deleteCustomStore(storeToDelete)}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-medium"
+                suppressHydrationWarning
+              >
+                حذف
+              </button>
+              <button
+                onClick={() => setStoreToDelete(null)}
+                className="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-xl font-medium hover:bg-slate-50"
+                suppressHydrationWarning
+              >
+                إلغاء
+              </button>
             </div>
           </div>
         </div>
