@@ -4,14 +4,24 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.8.5'
+export const APP_VERSION = '1.8.6'
 
 
 // تاريخ الإصدار
-export const RELEASE_DATE = '2026-04-24'
+export const RELEASE_DATE = '2026-04-25'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.8.6',
+    date: '2026-04-25',
+    changes: [
+      '🔧 إصلاح خطأ 500 في /api/sync',
+      '💾 إضافة عمود selectedStore لقاعدة البيانات',
+      '🚀 تشغيل الـ migration تلقائياً عند تسجيل الدخول',
+      '✅ الآن حفظ الأسعار يعمل بشكل صحيح',
+    ]
+  },
   {
     version: '1.8.5',
     date: '2026-04-24',

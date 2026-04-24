@@ -1107,6 +1107,20 @@ export default function Home() {
   const loadUserData = async () => {
     try {
       console.log('📥 loadUserData: جاري تحميل البيانات...')
+
+      // 🔧 تشغيل الـ migration إذا لزم الأمر
+      try {
+        const migrateResponse = await fetch('/api/migrate', { method: 'POST' })
+        if (migrateResponse.ok) {
+          const migrateData = await migrateResponse.json()
+          if (migrateData.columnAdded) {
+            console.log('✅ تم إضافة عمود selectedStore لقاعدة البيانات')
+          }
+        }
+      } catch (migrateError) {
+        console.log('⚠️ Migration check skipped:', migrateError)
+      }
+
       const response = await fetch('/api/sync')
       if (response.ok) {
         const data = await response.json()
