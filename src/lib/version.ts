@@ -4,7 +4,7 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.8.6'
+export const APP_VERSION = '1.8.7'
 
 
 // تاريخ الإصدار
@@ -12,6 +12,15 @@ export const RELEASE_DATE = '2026-04-25'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.8.7',
+    date: '2026-04-25',
+    changes: [
+      '🔍 debugging مفصل لحساب التكلفة',
+      '📊 تتبع دقيق للأسعار والكميات',
+      '🔧 تحسين logging لفهم المشاكل',
+    ]
+  },
   {
     version: '1.8.6',
     date: '2026-04-25',

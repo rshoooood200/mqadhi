@@ -2147,16 +2147,22 @@ export default function Home() {
   const purchasedItems = items.filter(i => i.isPurchased).length
 
   // 🛡️ حساب السعر الإجمالي بأمان
+  console.log('📋 items للحساب:', items.length, 'عناصر', items.map(i => ({ name: i.name, prices: i.prices, quantity: i.quantity })))
+
   const totalPrice = items.reduce((sum, item) => {
     try {
+      console.log('🔍 حساب لـ:', item.name, 'prices:', item.prices)
       const activePrice = getActivePrice(item)
+      console.log('💰 activePrice لـ', item.name, ':', activePrice)
       if (activePrice && typeof activePrice.price === 'number' && typeof item.quantity === 'number') {
         const itemTotal = activePrice.price * item.quantity
-        console.log('📊 حساب التكلفة:', item.name, 'السعر:', activePrice.price, 'الكمية:', item.quantity, 'المجموع:', itemTotal)
+        console.log('✅ حساب التكلفة:', item.name, 'السعر:', activePrice.price, 'الكمية:', item.quantity, 'المجموع:', itemTotal)
         return sum + itemTotal
       }
+      console.log('❌ لم يتم الحساب لـ:', item.name, 'activePrice:', activePrice, 'quantity:', item.quantity)
       return sum
-    } catch {
+    } catch (e) {
+      console.error('❌ خطأ في الحساب:', e)
       return sum
     }
   }, 0)
