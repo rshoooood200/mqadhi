@@ -4,7 +4,7 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.8.0'
+export const APP_VERSION = '1.8.1'
 
 
 // تاريخ الإصدار
@@ -12,6 +12,14 @@ export const RELEASE_DATE = '2026-04-24'
 
 // سجل التغييرات (يظهر للمستخدمين)
 export const CHANGELOG = [
+  {
+    version: '1.8.1',
+    date: '2026-04-24',
+    changes: [
+      '🔧 إصلاح: تحديث Service Worker لمنع مشاكل الكاش',
+      '🔄 تحديث إصدار الكاش لإجبار التحديث',
+    ]
+  },
   {
     version: '1.8.0',
     date: '2026-04-24',
