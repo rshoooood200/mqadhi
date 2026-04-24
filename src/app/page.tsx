@@ -2097,12 +2097,18 @@ export default function Home() {
   const totalItems = items.length
   const missingItems = items.filter(i => !i.isPurchased).length
   const purchasedItems = items.filter(i => i.isPurchased).length
+
+  // 🛡️ حساب السعر الإجمالي بأمان
   const totalPrice = items.reduce((sum, item) => {
-    const activePrice = getActivePrice(item)
-    if (activePrice) {
-      return sum + (activePrice.price * item.quantity)
+    try {
+      const activePrice = getActivePrice(item)
+      if (activePrice && typeof activePrice.price === 'number' && typeof item.quantity === 'number') {
+        return sum + (activePrice.price * item.quantity)
+      }
+      return sum
+    } catch {
+      return sum
     }
-    return sum
   }, 0)
 
   // تصدير إلى PDF
@@ -2410,17 +2416,32 @@ export default function Home() {
 
   // 🏪 الحصول على السعر النشط للمنتج
   const getActivePrice = (item: Item): { price: number; store: string } | null => {
-    if (!item.prices || item.prices.length === 0) return null
-    
+    // 🛡️ فحص آمن للأسعار
+    if (!item || !item.prices || !Array.isArray(item.prices) || item.prices.length === 0) return null
+
     // إذا كان هناك متجر محدد، ابحث عن سعره
     if (item.selectedStore) {
-      const selectedPrice = item.prices.find(p => p.store === item.selectedStore)
-      if (selectedPrice) return { price: selectedPrice.price, store: selectedPrice.store }
+      const selectedPrice = item.prices.find(p => p && p.store === item.selectedStore)
+      if (selectedPrice && typeof selectedPrice.price === 'number') {
+        return { price: selectedPrice.price, store: selectedPrice.store }
+      }
     }
-    
+
     // وإلا، أرجع أقل سعر
-    const minPrice = item.prices.reduce((min, p) => p.price < min.price ? p : min, item.prices[0])
-    return { price: minPrice.price, store: minPrice.store }
+    try {
+      const validPrices = item.prices.filter(p => p && typeof p.price === 'number')
+      if (validPrices.length === 0) return null
+
+      const minPrice = validPrices.reduce((min, p) => {
+        if (!min || p.price < min.price) return p
+        return min
+      }, validPrices[0])
+
+      return { price: minPrice.price, store: minPrice.store }
+    } catch (e) {
+      console.error('getActivePrice error:', e)
+      return null
+    }
   }
 
   // 🔄 تغيير المتجر المختار للمنتج
