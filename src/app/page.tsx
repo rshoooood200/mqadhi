@@ -940,8 +940,8 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // دمج المتاجر الافتراضية مع المخصصة
-  const allStores = [...defaultStores, ...customStores]
+  // دمج المتاجر الافتراضية مع المخصصة (مع إزالة التكرار)
+  const allStores = [...new Set([...defaultStores, ...customStores])]
 
   // حذف منتج من الاقتراحات نهائياً
   const handleDeleteSuggestion = async (productName: string, e: React.MouseEvent) => {

@@ -239,25 +239,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 🚨 حفظ/تحديث العناصر مع حماية قوية من الحذف غير المقصود
+    // 🚨 حفظ/تحديث العناصر
+    // 📌 ملاحظة: لا نحمي items لأن المستخدم يتحكم بها مباشرة (حذف/إضافة)
     // 🚨 استخدام transaction لضمان atomicity
     if (itemsSpecified) {
-      // التحقق من البيانات الحالية على السيرفر
       const currentItemsCount = await prisma.item.count({ where: { userId: user.id } })
+      console.log(`📊 items: السيرفر=${currentItemsCount}, الجديدة=${items?.length || 0}`)
       
-      // 🛡️ حماية: إذا كان هناك عناصر على السيرفر ولا توجد بيانات جديدة، لا تحذف!
-      // هذا يمنع الحذف غير المقصود بسبب race condition أو خطأ في إرسال البيانات
-      if (currentItemsCount > 0 && !hasItems) {
-        console.log(`⚠️ حماية items: يوجد ${currentItemsCount} عنصر على السيرفر ولا توجد بيانات جديدة - تم تخطي الحذف`)
-      } else {
-        await prisma.$transaction(async (tx) => {
-          // حذف العناصر القديمة فقط إذا كانت هناك بيانات جديدة
-          console.log('🗑️ حذف العناصر القديمة...')
-          await tx.item.deleteMany({ where: { userId: user.id } })
+      await prisma.$transaction(async (tx) => {
+        // حذف العناصر القديمة
+        console.log('🗑️ حذف العناصر القديمة...')
+        await tx.item.deleteMany({ where: { userId: user.id } })
 
-          // حفظ العناصر الجديدة (إذا وجدت)
-          if (hasItems) {
-            console.log('💾 حفظ', items.length, 'عناصر جديدة...')
+        // حفظ العناصر الجديدة (إذا وجدت)
+        if (hasItems) {
+          console.log('💾 حفظ', items.length, 'عناصر جديدة...')
             for (const item of items) {
               try {
                 // 🚨 مهم: استخدام ID من client للحفاظ على التطابق
@@ -317,14 +313,13 @@ export async function POST(request: NextRequest) {
             }
             console.log('✅ تم حفظ جميع العناصر')
           } else {
-            console.log('📝 لا توجد عناصر للحفظ')
+            console.log('📝 تم حذف جميع العناصر - القائمة فارغة الآن')
           }
         }, {
           // 🚨 إعدادات الـ transaction
           maxWait: 5000, // أقصى انتظار للحصول على lock
           timeout: 30000, // timeout للعملية
         })
-      }
     }
 
     // 🚨 حفظ/تحديث أفراد العائلة مع حماية قوية من الحذف غير المقصود
