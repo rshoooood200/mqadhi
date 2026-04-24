@@ -87,22 +87,23 @@ model Session {
 }
 
 model Item {
-  id          String   @id @default(cuid())
-  name        String
-  category    String
-  quantity    Int      @default(1)
-  notes       String   @default("")
-  isPurchased Boolean  @default(false)
-  image       String?
-  priority    Int      @default(0)
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-  createdBy   String   @default("")
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  familyId    String?
-  family      Family?  @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  prices      Price[]
+  id            String   @id @default(cuid())
+  name          String
+  category      String
+  quantity      Int      @default(1)
+  notes         String   @default("")
+  isPurchased   Boolean  @default(false)
+  image         String?
+  priority      Int      @default(0)
+  order         Int      @default(0)
+  selectedStore String?  // المتجر المختار للسعر النشط
+  createdAt     DateTime @default(now())
+  createdBy     String   @default("")
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId      String?
+  family        Family?  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  prices        Price[]
 
   @@index([userId])
   @@index([familyId])

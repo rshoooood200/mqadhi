@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
       notes: item.notes,
       isPurchased: item.isPurchased,
       image: item.image,
+      selectedStore: item.selectedStore || undefined,
       prices: item.prices.map(p => ({
         store: p.store,
         price: p.price,
@@ -259,7 +260,7 @@ export async function POST(request: NextRequest) {
                 // 🚨 مهم: استخدام ID من client للحفاظ على التطابق
                 // التحقق من صحة الـ ID (cuid format: يبدأ بـ 'c' و25 حرف)
                 const isValidCuid = item.id && /^c[a-z0-9]{24}$/.test(item.id)
-                
+
                 await tx.item.create({
                   data: {
                     id: isValidCuid ? item.id : undefined, // 🔧 نستخدم ID من client إذا كان صالحاً
@@ -269,6 +270,7 @@ export async function POST(request: NextRequest) {
                     notes: item.notes || '',
                     isPurchased: item.isPurchased || false,
                     image: item.image || null,
+                    selectedStore: item.selectedStore || null,
                     userId: user.id,
                     prices: {
                       create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({
@@ -293,6 +295,7 @@ export async function POST(request: NextRequest) {
                         notes: item.notes || '',
                         isPurchased: item.isPurchased || false,
                         image: item.image || null,
+                        selectedStore: item.selectedStore || null,
                         userId: user.id,
                         prices: {
                           create: (item.prices || []).map((p: { store: string; price: number; date: string }) => ({

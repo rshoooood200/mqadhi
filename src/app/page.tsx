@@ -1801,11 +1801,15 @@ export default function Home() {
 
       // 📌 إذا أضاف المستخدم سعراً جديداً، أضفه للأسعار
       let initialPrices = [...savedPrices]
-      if (itemPrice && itemPrice > 0) {
+      const priceValue = typeof itemPrice === 'number' ? itemPrice : parseFloat(String(itemPrice))
+
+      console.log('💰 السعر المدخل:', { itemPrice, itemPriceStore, priceValue })
+
+      if (priceValue && priceValue > 0) {
         const storeName = itemPriceStore || 'السعر المدخل'
         const newPrice: PriceEntry = {
           store: storeName,
-          price: itemPrice,
+          price: priceValue,
           date: new Date().toISOString()
         }
         initialPrices.push(newPrice)
@@ -1833,14 +1837,14 @@ export default function Home() {
         isPurchased: false,
         image: itemImage,
         prices: initialPrices,
-        selectedStore: itemPrice && itemPrice > 0 ? (itemPriceStore || 'السعر المدخل') : undefined,
+        selectedStore: priceValue && priceValue > 0 ? (itemPriceStore || 'السعر المدخل') : undefined,
         createdAt: new Date().toISOString()
       }
       updatedItems = [...currentItems, newItem]
       // 📌 تحديث state و ref معاً
       itemsRef.current = updatedItems
       setItems(updatedItems)
-      console.log('✅ تمت إضافة المنتج:', newItem.name, 'إجمالي المنتجات:', updatedItems.length)
+      console.log('✅ تمت إضافة المنتج:', newItem.name, 'السعر:', initialPrices, 'إجمالي المنتجات:', updatedItems.length)
     }
 
     // إعادة تعيين الحقول
@@ -2133,13 +2137,17 @@ export default function Home() {
     try {
       const activePrice = getActivePrice(item)
       if (activePrice && typeof activePrice.price === 'number' && typeof item.quantity === 'number') {
-        return sum + (activePrice.price * item.quantity)
+        const itemTotal = activePrice.price * item.quantity
+        console.log('📊 حساب التكلفة:', item.name, 'السعر:', activePrice.price, 'الكمية:', item.quantity, 'المجموع:', itemTotal)
+        return sum + itemTotal
       }
       return sum
     } catch {
       return sum
     }
   }, 0)
+
+  console.log('💰 التكلفة الإجمالية:', totalPrice)
 
   // تصدير إلى PDF
   const exportToPDF = async () => {
@@ -2447,12 +2455,18 @@ export default function Home() {
   // 🏪 الحصول على السعر النشط للمنتج
   const getActivePrice = (item: Item): { price: number; store: string } | null => {
     // 🛡️ فحص آمن للأسعار
-    if (!item || !item.prices || !Array.isArray(item.prices) || item.prices.length === 0) return null
+    if (!item || !item.prices || !Array.isArray(item.prices) || item.prices.length === 0) {
+      console.log('⚠️ getActivePrice: لا توجد أسعار لـ', item?.name)
+      return null
+    }
+
+    console.log('🔍 getActivePrice للمنتج:', item.name, 'الأسعار:', item.prices)
 
     // إذا كان هناك متجر محدد، ابحث عن سعره
     if (item.selectedStore) {
       const selectedPrice = item.prices.find(p => p && p.store === item.selectedStore)
       if (selectedPrice && typeof selectedPrice.price === 'number') {
+        console.log('✅ السعر المختار:', selectedPrice)
         return { price: selectedPrice.price, store: selectedPrice.store }
       }
     }
@@ -2460,13 +2474,17 @@ export default function Home() {
     // وإلا، أرجع أقل سعر
     try {
       const validPrices = item.prices.filter(p => p && typeof p.price === 'number')
-      if (validPrices.length === 0) return null
+      if (validPrices.length === 0) {
+        console.log('⚠️ لا توجد أسعار صالحة')
+        return null
+      }
 
       const minPrice = validPrices.reduce((min, p) => {
         if (!min || p.price < min.price) return p
         return min
       }, validPrices[0])
 
+      console.log('✅ أقل سعر:', minPrice)
       return { price: minPrice.price, store: minPrice.store }
     } catch (e) {
       console.error('getActivePrice error:', e)
