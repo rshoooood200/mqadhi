@@ -2141,6 +2141,46 @@ export default function Home() {
     return categories[categories.length - 1] // 'other'
   }
 
+  // 🏪 الحصول على السعر النشط للمنتج (يجب أن تكون قبل totalPrice)
+  const getActivePrice = (item: Item): { price: number; store: string } | null => {
+    // 🛡️ فحص آمن للأسعار
+    if (!item || !item.prices || !Array.isArray(item.prices) || item.prices.length === 0) {
+      console.log('⚠️ getActivePrice: لا توجد أسعار لـ', item?.name)
+      return null
+    }
+
+    console.log('🔍 getActivePrice للمنتج:', item.name, 'الأسعار:', item.prices)
+
+    // إذا كان هناك متجر محدد، ابحث عن سعره
+    if (item.selectedStore) {
+      const selectedPrice = item.prices.find(p => p && p.store === item.selectedStore)
+      if (selectedPrice && typeof selectedPrice.price === 'number') {
+        console.log('✅ السعر المختار:', selectedPrice)
+        return { price: selectedPrice.price, store: selectedPrice.store }
+      }
+    }
+
+    // وإلا، أرجع أقل سعر
+    try {
+      const validPrices = item.prices.filter(p => p && typeof p.price === 'number')
+      if (validPrices.length === 0) {
+        console.log('⚠️ لا توجد أسعار صالحة')
+        return null
+      }
+
+      const minPrice = validPrices.reduce((min, p) => {
+        if (!min || p.price < min.price) return p
+        return min
+      }, validPrices[0])
+
+      console.log('✅ أقل سعر:', minPrice)
+      return { price: minPrice.price, store: minPrice.store }
+    } catch (e) {
+      console.error('getActivePrice error:', e)
+      return null
+    }
+  }
+
   // إحصائيات
   const totalItems = items.length
   const missingItems = items.filter(i => !i.isPurchased).length
@@ -2469,46 +2509,6 @@ export default function Home() {
       } catch (error) {
         console.error('Delete price save error:', error)
       }
-    }
-  }
-
-  // 🏪 الحصول على السعر النشط للمنتج
-  const getActivePrice = (item: Item): { price: number; store: string } | null => {
-    // 🛡️ فحص آمن للأسعار
-    if (!item || !item.prices || !Array.isArray(item.prices) || item.prices.length === 0) {
-      console.log('⚠️ getActivePrice: لا توجد أسعار لـ', item?.name)
-      return null
-    }
-
-    console.log('🔍 getActivePrice للمنتج:', item.name, 'الأسعار:', item.prices)
-
-    // إذا كان هناك متجر محدد، ابحث عن سعره
-    if (item.selectedStore) {
-      const selectedPrice = item.prices.find(p => p && p.store === item.selectedStore)
-      if (selectedPrice && typeof selectedPrice.price === 'number') {
-        console.log('✅ السعر المختار:', selectedPrice)
-        return { price: selectedPrice.price, store: selectedPrice.store }
-      }
-    }
-
-    // وإلا، أرجع أقل سعر
-    try {
-      const validPrices = item.prices.filter(p => p && typeof p.price === 'number')
-      if (validPrices.length === 0) {
-        console.log('⚠️ لا توجد أسعار صالحة')
-        return null
-      }
-
-      const minPrice = validPrices.reduce((min, p) => {
-        if (!min || p.price < min.price) return p
-        return min
-      }, validPrices[0])
-
-      console.log('✅ أقل سعر:', minPrice)
-      return { price: minPrice.price, store: minPrice.store }
-    } catch (e) {
-      console.error('getActivePrice error:', e)
-      return null
     }
   }
 

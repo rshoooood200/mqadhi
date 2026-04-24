@@ -4,7 +4,7 @@
 // - MINOR: ميزات جديدة متوافقة
 // - PATCH: إصلاح أخطاء
 
-export const APP_VERSION = '1.8.7'
+export const APP_VERSION = '1.8.8'
 
 
 // تاريخ الإصدار
