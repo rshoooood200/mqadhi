@@ -1,22 +1,26 @@
-import ZAI from 'z-ai-web-dev-sdk';
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // الحصول على المستخدم الحالي
 async function getCurrentUser(request: NextRequest) {
-  const sessionToken = request.cookies.get('session-token')?.value
+  try {
+    const sessionToken = request.cookies.get('session-token')?.value
 
-  if (!sessionToken) return null
+    if (!sessionToken) return null
 
-  const session = await prisma.session.findFirst({
-    where: {
-      id: sessionToken,
-      expiresAt: { gt: new Date() }
-    },
-    include: { user: true }
-  })
+    const session = await prisma.session.findFirst({
+      where: {
+        id: sessionToken,
+        expiresAt: { gt: new Date() }
+      },
+      include: { user: true }
+    })
 
-  return session?.user || null
+    return session?.user || null
+  } catch (error) {
+    console.error('getCurrentUser error:', error)
+    return null
+  }
 }
 
 // تعريف التصنيفات المفصلة مع الكلمات المفتاحية
@@ -213,25 +217,48 @@ export async function POST(request: NextRequest) {
     // 🛡️ التحقق من الجلسة
     const user = await getCurrentUser(request)
     if (!user) {
-      return NextResponse.json({ error: 'غير مسجل الدخول', category: 'other', categoryName: 'أخرى' }, { status: 401 })
+      // للمستخدمين غير مسجلين الدخول، نسمح بالتصنيف المحلي فقط
+      const body = await request.json().catch(() => ({}))
+      const { itemName } = body
+
+      if (!itemName || typeof itemName !== 'string') {
+        return NextResponse.json({ error: 'اسم الغرض مطلوب', category: 'other', categoryName: 'أخرى' }, { status: 400 })
+      }
+
+      // تصنيف بناءً على الكلمات المفتاحية فقط
+      const itemNameLower = itemName.toLowerCase()
+      let keywordCategory: string | null = null
+
+      for (const cat of CATEGORIES) {
+        if (cat.keywords.some(keyword => itemNameLower.includes(keyword))) {
+          keywordCategory = cat.id
+          break
+        }
+      }
+
+      const categoryInfo = CATEGORIES.find(c => c.id === keywordCategory)
+      return NextResponse.json({
+        category: keywordCategory || 'other',
+        categoryName: categoryInfo?.name || 'أخرى',
+        method: 'keywords'
+      })
     }
 
-    const zai = await ZAI.create();
-    const { itemName, customCategories } = await request.json();
+    const { itemName, customCategories } = await request.json()
 
     if (!itemName || typeof itemName !== 'string') {
-      return NextResponse.json({ error: 'اسم الغرض مطلوب' }, { status: 400 });
+      return NextResponse.json({ error: 'اسم الغرض مطلوب' }, { status: 400 })
     }
 
     // البحث في الكلمات المفتاحية أولاً (سريع ودقيق)
-    const itemNameLower = itemName.toLowerCase();
-    let keywordCategory: string | null = null;
-    
+    const itemNameLower = itemName.toLowerCase()
+    let keywordCategory: string | null = null
+
     // البحث في التصنيفات الافتراضية
     for (const cat of CATEGORIES) {
       if (cat.keywords.some(keyword => itemNameLower.includes(keyword))) {
-        keywordCategory = cat.id;
-        break;
+        keywordCategory = cat.id
+        break
       }
     }
 
@@ -240,13 +267,13 @@ export async function POST(request: NextRequest) {
       for (const cat of customCategories) {
         if (cat.keywords && Array.isArray(cat.keywords) && cat.keywords.length > 0) {
           if (cat.keywords.some((keyword: string) => itemNameLower.includes(keyword.toLowerCase()))) {
-            keywordCategory = cat.id;
+            keywordCategory = cat.id
             // نرجع التصنيف المخصص مباشرة
             return NextResponse.json({
               category: cat.id,
               categoryName: cat.name,
               method: 'custom_keywords'
-            });
+            })
           }
         }
       }
@@ -254,77 +281,26 @@ export async function POST(request: NextRequest) {
 
     // إذا وجدنا تصنيف من الكلمات المفتاحية، نستخدمه
     if (keywordCategory) {
-      const categoryInfo = CATEGORIES.find(c => c.id === keywordCategory);
+      const categoryInfo = CATEGORIES.find(c => c.id === keywordCategory)
       return NextResponse.json({
         category: keywordCategory,
         categoryName: categoryInfo?.name || 'أخرى',
         method: 'keywords'
-      });
+      })
     }
 
-    // دمج التصنيفات المخصصة مع الافتراضية للـ AI
-    const allCategories = [...CATEGORIES];
-    if (customCategories && Array.isArray(customCategories)) {
-      for (const cat of customCategories) {
-        allCategories.push({
-          id: cat.id,
-          name: cat.name,
-          keywords: cat.keywords || []
-        });
-      }
-    }
-
-    // استخدام AI للتصنيف إذا لم نجد تطابق
-    const categoriesDescription = allCategories.map(c => 
-      `- ${c.id}: ${c.name}${c.keywords && c.keywords.length > 0 ? ' (مثل: ' + c.keywords.slice(0, 3).join(', ') + ')' : ''}`
-    ).join('\n');
-
-    const completion = await zai.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: `أنت مساعد ذكي لتصنيف منتجات المشتريات العربية. التصنيفات المتاحة:
-${categoriesDescription}
-
-أرجع ONLY اسم التصنيف (id) بدون أي كلمات إضافية. مثال: dairy أو meat أو vegetables`
-        },
-        {
-          role: 'user',
-          content: `صنف هذا الغرض: "${itemName}"`
-        }
-      ],
-      temperature: 0.1,
-      max_tokens: 20
-    });
-
-    const aiCategory = completion.choices[0]?.message?.content?.trim().toLowerCase() || 'other';
-    
-    // التحقق من صحة التصنيف
-    const validCategories = allCategories.map(c => c.id);
-    const finalCategory = validCategories.includes(aiCategory) ? aiCategory : 'other';
-
-    // البحث عن معلومات التصنيف (افتراضي أو مخصص)
-    let categoryInfo = CATEGORIES.find(c => c.id === finalCategory);
-    let categoryName = categoryInfo?.name || 'أخرى';
-    
-    if (!categoryInfo && customCategories && Array.isArray(customCategories)) {
-      const customCat = customCategories.find((c: { id: string; name: string }) => c.id === finalCategory);
-      if (customCat) {
-        categoryName = customCat.name;
-      }
-    }
-
+    // إذا لم نجد تطابق، نرجع 'other'
     return NextResponse.json({
-      category: finalCategory,
-      categoryName: categoryName,
-      method: 'ai'
-    });
+      category: 'other',
+      categoryName: 'أخرى',
+      method: 'fallback'
+    })
 
   } catch (error) {
-    console.error('Classification error:', error);
+    console.error('Classification error:', error)
     return NextResponse.json(
       { error: 'حدث خطأ في التصنيف', category: 'other', categoryName: 'أخرى' },
-      { status: 500 }
-    );
+      { status: 200 } // نرجع 200 بدلاً من 500 لتجنب أخطاء الـ client
+    )
   }
 }

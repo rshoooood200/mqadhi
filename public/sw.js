@@ -1,6 +1,6 @@
-const CACHE_NAME = 'home-items-v2';
-const STATIC_CACHE = 'static-v2';
-const DYNAMIC_CACHE = 'dynamic-v2';
+const CACHE_NAME = 'home-items-v3';
+const STATIC_CACHE = 'static-v3';
+const DYNAMIC_CACHE = 'dynamic-v3';
 
 // الملفات التي سيتم تخزينها مؤقتاً
 const STATIC_FILES = [
